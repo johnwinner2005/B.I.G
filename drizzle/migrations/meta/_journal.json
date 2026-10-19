@@ -1,5 +1,13 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792389768372,
+      "tag": "0000_create_big_autos_platform",
+      "breakpoints": true
+    }
+  ]
 }

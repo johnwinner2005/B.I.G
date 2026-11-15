@@ -47,6 +47,35 @@ function body(req) {{
 module.exports = {{ checkLogin, makeCookie, clearCookie, isAdmin, body }};
 """)
 
+open(f'{root}/lib/blob.js', 'w').write("""// Finds the Blob token however Vercel named it (BLOB_READ_WRITE_TOKEN or a custom prefix).
+function findToken() {
+  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN;
+  const k = Object.keys(process.env).find(n => /_READ_WRITE_TOKEN$/.test(n) && process.env[n]);
+  return k ? process.env[k] : '';
+}
+async function blob() {
+  const token = findToken();
+  if (!token) { const e = new Error('NO_TOKEN'); e.code = 'NO_TOKEN'; throw e; }
+  const m = await import('@vercel/blob');
+  return { token, put: (n, d, o) => m.put(n, d, { ...o, token }), list: o => m.list({ ...o, token }) };
+}
+function explain(e) {
+  const m = String((e && e.message) || e || '');
+  if (e && e.code === 'NO_TOKEN') return 'Storage is not connected. In Vercel open Storage, create a Blob store (choose Public), connect it to this project for all environments, then redeploy.';
+  if (/private/i.test(m)) return 'This Blob store is private. Create a new Blob store with Public access and connect it to this project, then redeploy.';
+  if (/Cannot find (package|module)/i.test(m)) return 'Server packages were not installed. Redeploy the project from the latest GitHub commit.';
+  return 'Storage error: ' + m.slice(0, 200);
+}
+module.exports = { blob, explain, findToken };
+""")
+open(f'{root}/api/health.js', 'w').write("""const { findToken } = require('../lib/blob');
+module.exports = async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  let pkg = true; try { require.resolve('@vercel/blob'); } catch { pkg = false; }
+  res.status(200).json({ ok: true, storageTokenFound: !!findToken(), blobPackageInstalled: pkg, node: process.version });
+};
+""")
+
 open(f'{root}/api/login.js', 'w').write("""const { checkLogin, makeCookie, clearCookie, isAdmin, body } = require('../lib/auth');
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -62,7 +91,7 @@ module.exports = async (req, res) => {
 
 open(f'{root}/api/state.js', 'w').write("""module.exports = async (req, res) => {
   try {
-    const { list } = await import('@vercel/blob');
+    const { list } = await require('../lib/blob').blob();
     const { blobs } = await list({ prefix: 'site/state.json' });
     const b = blobs.find(x => x.pathname === 'site/state.json');
     if (!b) return res.status(404).json({ error: 'Nothing published yet' });
@@ -72,7 +101,7 @@ open(f'{root}/api/state.js', 'w').write("""module.exports = async (req, res) => 
     res.setHeader('Cache-Control', 'public, s-maxage=15, stale-while-revalidate=60');
     return res.status(200).send(await r.text());
   } catch (e) {
-    return res.status(404).json({ error: 'Storage is not connected yet' });
+    return res.status(404).json({ error: require('../lib/blob').explain(e) });
   }
 };
 """)
@@ -85,12 +114,11 @@ module.exports = async (req, res) => {
   const s = body(req);
   if (!s || !Array.isArray(s.cars) || typeof s.settings !== 'object') return res.status(400).json({ error: 'That data does not look right' });
   try {
-    const { put } = await import('@vercel/blob');
+    const { put } = await require('../lib/blob').blob();
     await put('site/state.json', JSON.stringify(s), { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json', cacheControlMaxAge: 60 });
     return res.status(200).json({ ok: true });
   } catch (e) {
-    const msg = /token/i.test(String(e && e.message)) ? 'Storage is not connected. In Vercel open Storage, create a Blob store, connect it to this project, then redeploy.' : 'Could not save: ' + (e && e.message || 'unknown error');
-    return res.status(500).json({ error: msg });
+    return res.status(500).json({ error: require('../lib/blob').explain(e) });
   }
 };
 """)
@@ -109,12 +137,11 @@ module.exports = async (req, res) => {
   if (buf.length > 3.4 * 1024 * 1024) return res.status(413).json({ error: 'File is too large. Keep it under 3 MB.' });
   const name = 'uploads/' + crypto.createHash('sha1').update(buf).digest('hex') + '.' + TYPES[m[1]];
   try {
-    const { put } = await import('@vercel/blob');
+    const { put } = await require('../lib/blob').blob();
     const r = await put(name, buf, { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: m[1], cacheControlMaxAge: 31536000 });
     return res.status(200).json({ url: r.url });
   } catch (e) {
-    const msg = /token/i.test(String(e && e.message)) ? 'Storage is not connected. In Vercel open Storage, create a Blob store, connect it to this project, then redeploy.' : 'Upload failed: ' + (e && e.message || 'unknown error');
-    return res.status(500).json({ error: msg });
+    return res.status(500).json({ error: require('../lib/blob').explain(e) });
   }
 };
 """)

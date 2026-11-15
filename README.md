@@ -31,3 +31,7 @@ To change it, add these in Vercel → Settings → Environment Variables, then r
 `public/index.html` is a built file. The editable source is in `source/`
 (`p*.js`, `app.css`, `state.json`). Rebuild the Vercel package with
 `python3 mkvercel.py` from inside `source/`; it writes to `vercel-pkg/` and a zip.
+
+## Checking storage
+
+Open `/api/health` on your site. It shows `storageTokenFound: true` once a Blob store is connected and the project has been redeployed.

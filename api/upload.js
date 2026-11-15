@@ -12,11 +12,10 @@ module.exports = async (req, res) => {
   if (buf.length > 3.4 * 1024 * 1024) return res.status(413).json({ error: 'File is too large. Keep it under 3 MB.' });
   const name = 'uploads/' + crypto.createHash('sha1').update(buf).digest('hex') + '.' + TYPES[m[1]];
   try {
-    const { put } = await import('@vercel/blob');
+    const { put } = await require('../lib/blob').blob();
     const r = await put(name, buf, { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: m[1], cacheControlMaxAge: 31536000 });
     return res.status(200).json({ url: r.url });
   } catch (e) {
-    const msg = /token/i.test(String(e && e.message)) ? 'Storage is not connected. In Vercel open Storage, create a Blob store, connect it to this project, then redeploy.' : 'Upload failed: ' + (e && e.message || 'unknown error');
-    return res.status(500).json({ error: msg });
+    return res.status(500).json({ error: require('../lib/blob').explain(e) });
   }
 };

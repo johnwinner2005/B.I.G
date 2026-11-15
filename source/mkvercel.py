@@ -4,8 +4,8 @@ m = re.search(r"user: '([^']+)', salt: '([0-9a-f]+)', iter: (\d+), hash: '([0-9a
 USER, SALT, ITER, HASH = m.groups()
 root = 'vercel-pkg/big-autos-site'
 shutil.rmtree('vercel-pkg', ignore_errors=True)
-for d in ['public', 'api', 'lib']: os.makedirs(f'{root}/{d}')
-os.system('python3 build.py /tmp/_v.html vercel')
+for d in ['public']: os.makedirs(f'{root}/{d}')
+os.system('python3 build.py /tmp/_v.html github')
 body = open('/tmp/_v.html').read()
 reset = ':root{color-scheme:dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;background:#07080B;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}'
 page = ('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
@@ -13,169 +13,34 @@ page = ('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="
         '<meta name="theme-color" content="#CE3837"><style>' + reset + '</style></head><body>' + body + '</body></html>')
 open(f'{root}/public/index.html', 'w').write(page)
 
-open(f'{root}/lib/auth.js', 'w').write(f"""const crypto = require('crypto');
-const SEED = {{ user: '{USER}', salt: '{SALT}', iter: {ITER}, hash: '{HASH}' }};
-const DAY = 24 * 3600 * 1000;
-const secret = () => process.env.SESSION_SECRET || process.env.BLOB_READ_WRITE_TOKEN || ('big-autos-' + SEED.hash);
-const sign = exp => crypto.createHmac('sha256', secret()).update('big|' + exp).digest('hex');
-const same = (a, b) => {{ const x = crypto.createHash('sha256').update(String(a)).digest(), y = crypto.createHash('sha256').update(String(b)).digest(); return crypto.timingSafeEqual(x, y); }};
-
-function checkLogin(user, pass) {{
-  user = String(user || '').trim().toLowerCase(); pass = String(pass || '').trim().replace(/[\\u2010-\\u2015\\u2212]/g, '-');
-  if (process.env.ADMIN_PASSWORD) {{
-    const u = String(process.env.ADMIN_USER || SEED.user).toLowerCase();
-    return same(user, u) & same(pass, process.env.ADMIN_PASSWORD);
-  }}
-  const h = crypto.pbkdf2Sync(pass, Buffer.from(SEED.salt, 'hex'), SEED.iter, 32, 'sha256').toString('hex');
-  return same(user, SEED.user) & same(h, SEED.hash);
-}}
-function makeCookie() {{
-  const exp = Date.now() + 7 * DAY;
-  return 'big_session=' + exp + '.' + sign(exp) + '; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=' + 7 * 86400;
-}}
-const clearCookie = () => 'big_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0';
-function isAdmin(req) {{
-  const m = /(?:^|;\\s*)big_session=(\\d+)\\.([0-9a-f]+)/.exec(req.headers.cookie || '');
-  if (!m || +m[1] < Date.now()) return false;
-  return same(m[2], sign(m[1]));
-}}
-function body(req) {{
-  let b = req.body;
-  if (typeof b === 'string') {{ try {{ b = JSON.parse(b); }} catch {{ b = null; }} }}
-  return b;
-}}
-module.exports = {{ checkLogin, makeCookie, clearCookie, isAdmin, body }};
-""")
-
-open(f'{root}/lib/blob.js', 'w').write("""// Finds the Blob token however Vercel named it (BLOB_READ_WRITE_TOKEN or a custom prefix).
-function findToken() {
-  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN;
-  const k = Object.keys(process.env).find(n => /_READ_WRITE_TOKEN$/.test(n) && process.env[n]);
-  return k ? process.env[k] : '';
-}
-async function blob() {
-  const token = findToken();
-  if (!token) { const e = new Error('NO_TOKEN'); e.code = 'NO_TOKEN'; throw e; }
-  const m = await import('@vercel/blob');
-  return { token, put: (n, d, o) => m.put(n, d, { ...o, token }), list: o => m.list({ ...o, token }) };
-}
-function explain(e) {
-  const m = String((e && e.message) || e || '');
-  if (e && e.code === 'NO_TOKEN') return 'Storage is not connected. In Vercel open Storage, create a Blob store (choose Public), connect it to this project for all environments, then redeploy.';
-  if (/private/i.test(m)) return 'This Blob store is private. Create a new Blob store with Public access and connect it to this project, then redeploy.';
-  if (/Cannot find (package|module)/i.test(m)) return 'Server packages were not installed. Redeploy the project from the latest GitHub commit.';
-  return 'Storage error: ' + m.slice(0, 200);
-}
-module.exports = { blob, explain, findToken };
-""")
-open(f'{root}/api/health.js', 'w').write("""const { findToken } = require('../lib/blob');
-module.exports = async (req, res) => {
-  res.setHeader('Cache-Control', 'no-store');
-  let pkg = true; try { require.resolve('@vercel/blob'); } catch { pkg = false; }
-  res.status(200).json({ ok: true, storageTokenFound: !!findToken(), blobPackageInstalled: pkg, node: process.version });
-};
-""")
-
-open(f'{root}/api/login.js', 'w').write("""const { checkLogin, makeCookie, clearCookie, isAdmin, body } = require('../lib/auth');
-module.exports = async (req, res) => {
-  res.setHeader('Cache-Control', 'no-store');
-  if (req.method === 'GET') return res.status(200).json({ admin: isAdmin(req) });
-  if (req.method === 'DELETE') { res.setHeader('Set-Cookie', clearCookie()); return res.status(200).json({ ok: true }); }
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  const b = body(req) || {};
-  if (checkLogin(b.user, b.pass)) { res.setHeader('Set-Cookie', makeCookie()); return res.status(200).json({ ok: true }); }
-  await new Promise(r => setTimeout(r, 900));
-  return res.status(401).json({ error: 'Username or password is not right.' });
-};
-""")
-
-open(f'{root}/api/state.js', 'w').write("""module.exports = async (req, res) => {
-  try {
-    const { list } = await require('../lib/blob').blob();
-    const { blobs } = await list({ prefix: 'site/state.json' });
-    const b = blobs.find(x => x.pathname === 'site/state.json');
-    if (!b) return res.status(404).json({ error: 'Nothing published yet' });
-    const r = await fetch(b.url + '?v=' + new Date(b.uploadedAt).getTime());
-    if (!r.ok) return res.status(502).json({ error: 'Could not read the published data' });
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, s-maxage=15, stale-while-revalidate=60');
-    return res.status(200).send(await r.text());
-  } catch (e) {
-    return res.status(404).json({ error: require('../lib/blob').explain(e) });
-  }
-};
-""")
-
-open(f'{root}/api/publish.js', 'w').write("""const { isAdmin, body } = require('../lib/auth');
-module.exports = async (req, res) => {
-  res.setHeader('Cache-Control', 'no-store');
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (!isAdmin(req)) return res.status(401).json({ error: 'Sign in again' });
-  const s = body(req);
-  if (!s || !Array.isArray(s.cars) || typeof s.settings !== 'object') return res.status(400).json({ error: 'That data does not look right' });
-  try {
-    const { put } = await require('../lib/blob').blob();
-    await put('site/state.json', JSON.stringify(s), { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json', cacheControlMaxAge: 60 });
-    return res.status(200).json({ ok: true });
-  } catch (e) {
-    return res.status(500).json({ error: require('../lib/blob').explain(e) });
-  }
-};
-""")
-
-open(f'{root}/api/upload.js', 'w').write("""const crypto = require('crypto');
-const { isAdmin, body } = require('../lib/auth');
-const TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif', 'video/mp4': 'mp4', 'video/webm': 'webm' };
-module.exports = async (req, res) => {
-  res.setHeader('Cache-Control', 'no-store');
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (!isAdmin(req)) return res.status(401).json({ error: 'Sign in again' });
-  const b = body(req) || {};
-  const m = /^data:([a-z0-9\\/+.-]+);base64,(.+)$/s.exec(String(b.dataUrl || ''));
-  if (!m || !TYPES[m[1]]) return res.status(400).json({ error: 'Use a JPG, PNG, WebP, MP4 or WebM file.' });
-  const buf = Buffer.from(m[2], 'base64');
-  if (buf.length > 3.4 * 1024 * 1024) return res.status(413).json({ error: 'File is too large. Keep it under 3 MB.' });
-  const name = 'uploads/' + crypto.createHash('sha1').update(buf).digest('hex') + '.' + TYPES[m[1]];
-  try {
-    const { put } = await require('../lib/blob').blob();
-    const r = await put(name, buf, { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: m[1], cacheControlMaxAge: 31536000 });
-    return res.status(200).json({ url: r.url });
-  } catch (e) {
-    return res.status(500).json({ error: require('../lib/blob').explain(e) });
-  }
-};
-""")
-
-json.dump({"name": "big-autos-site", "version": "1.0.0", "private": True, "description": "B.I.G Autos website with admin dashboard", "dependencies": {"@vercel/blob": ">=0.27.0"}, "engines": {"node": ">=18"}}, open(f'{root}/package.json', 'w'), indent=2)
-json.dump({"outputDirectory": "public", "functions": {"api/*.js": {"maxDuration": 30}}, "headers": [{"source": "/(.*)", "headers": [{"key": "X-Content-Type-Options", "value": "nosniff"}, {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"}]}]}, open(f'{root}/vercel.json', 'w'), indent=2)
+json.dump({"name": "big-autos-site", "version": "1.0.0", "private": True, "description": "B.I.G Autos website with admin dashboard", "engines": {"node": ">=18"}}, open(f'{root}/package.json', 'w'), indent=2)
+json.dump({"outputDirectory": "public", "headers": [{"source": "/(.*)", "headers": [{"key": "X-Content-Type-Options", "value": "nosniff"}, {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"}]}]}, open(f'{root}/vercel.json', 'w'), indent=2)
 open(f'{root}/.gitignore', 'w').write('node_modules\n.vercel\n.env*\n')
 open(f'{root}/README.md', 'w').write(f"""# B.I.G Autos site
 
-Public site at `/`, admin at `/#admin` (or the "Staff" link in the footer).
+Plain website with a built-in admin dashboard. No database, no server code and no Vercel storage.
+When you press **Publish changes** in the dashboard, the changes are saved straight into this GitHub repository
+(`public/data/state.json` for the text, `public/uploads/` for photos and videos). Your host rebuilds the site by itself.
 
-## Deploy (about 5 minutes)
+## One-time setup
 
-1. Unzip this folder. Go to vercel.com, sign in, then **Add New → Project**.
-   - Easiest: put the folder in a GitHub repo and import it.
-   - Or install the CLI and run `npx vercel --prod` inside this folder.
-2. Leave the framework as **Other**. No build command is needed.
-3. After the first deploy, open the project, go to **Storage → Create Database → Blob**, name it anything, and **Connect** it to this project (all environments). This adds `BLOB_READ_WRITE_TOKEN` for you.
-4. **Redeploy** (Deployments → the latest one → Redeploy) so the site picks up the storage.
-5. Open `your-project.vercel.app/#admin`, sign in, change anything, tap **Publish changes**. Visitors see it within about a minute.
+1. **Host the repo.** On Vercel: Add New, Project, import this repo. Framework: Other. Output directory: `public`. No build command, no environment variables, no storage.
+2. **Make a GitHub key** (about 2 minutes): GitHub, Settings, Developer settings, Personal access tokens, Fine-grained tokens, Generate new token.
+   - Repository access: only this repository.
+   - Permissions: Contents, Read and write.
+3. **Connect the dashboard.** Open `your-site/#admin` and sign in. Go to Site, then Publishing. Paste the repository (`owner/name`), the branch (`main`) and the key. Press Save, then Test connection.
+4. Edit anything, then press **Publish changes**. The live site updates in about a minute.
+
+Do step 3 once on each phone or computer you publish from. The key is kept only on that device. Anyone without the key cannot change the site.
 
 ## Login
 
-Username `{USER}`. The password is the one sent to you in chat. Only a hash is stored in this code.
-
-To change it, add these in Vercel → Settings → Environment Variables, then redeploy:
-- `ADMIN_USER` (optional, default `{USER}`)
-- `ADMIN_PASSWORD` (your new password; it overrides the built-in one)
-- `SESSION_SECRET` (optional, any long random text)
+Username `{USER}`. The password is the one sent to you in chat. This login only opens the dashboard on your device. The GitHub key is what protects publishing.
 
 ## Notes
-- Photos you upload are stored in Blob and the site keeps only their links. Keep each photo or video under 3 MB (photos are shrunk automatically).
-- Your edits save on your device first. They go live for everyone only when you press **Publish changes**.
-- To use your own domain later: Project → Settings → Domains.
+- Photos are shrunk automatically. Videos must be under 12 MB.
+- Newly uploaded photos can look empty on your own screen for a minute, until the site finishes rebuilding.
+- The editable source is in `source/`. Rebuild the package with `python3 mkvercel.py` from inside `source/`.
 """)
 # zip
 zp = 'big-autos-vercel.zip'

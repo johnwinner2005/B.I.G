@@ -121,6 +121,16 @@ function upBlock(label, k, accept) {
   return `<div><b style="font-size:.82rem;color:var(--mute)">${label}</b>${v ? (/\.(mp4|webm|mov)/i.test(v) || isV ? `<video src="${esc(v)}" muted style="max-width:260px;border-radius:12px;margin-top:6px"></video>` : `<img src="${esc(v)}" alt="" style="max-width:260px;max-height:140px;border-radius:12px;margin-top:6px;background:var(--surface2)">`) : '<p class="hint">Not set</p>'}
   <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><label class="btn soft sm" for="up-${k}">${v ? 'Replace' : 'Upload'}</label><input id="up-${k}" type="file" accept="${accept}" data-up-s="${k}" hidden>${v ? `<button class="btn soft sm" type="button" data-act="s-clear" data-k="${k}">Remove</button>` : ''}</div></div>`;
 }
+function ghCard() {
+  const g = GH.get();
+  return `<div class="pnl"><h3>Publishing</h3>
+  <p class="hint">Publishing saves your changes to your GitHub repository, and your site rebuilds itself within about a minute. Set this up once per device.</p>
+  <label>Repository<input class="field" id="gh-repo" autocapitalize="none" spellcheck="false" value="${esc(g.repo || 'johnwinner2005/big-autos-main-site')}"><span class="hint">Format: owner/name</span></label>
+  <label>Branch<input class="field" id="gh-branch" autocapitalize="none" spellcheck="false" value="${esc(g.branch || 'main')}"></label>
+  <label>GitHub key<input class="field" id="gh-token" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="${g.token ? 'Saved on this device. Paste a new one to replace it.' : 'github_pat_…'}"><span class="hint">On GitHub: Settings, Developer settings, Fine-grained tokens, Generate new token. Pick only this repository and give it <b>Contents: Read and write</b>.</span></label>
+  <div class="acts" style="margin:0"><button class="btn" type="button" data-act="gh-save">Save</button><button class="btn soft" type="button" data-act="gh-test">Test connection</button>${g.token ? '<button class="btn soft" type="button" data-act="gh-clear">Forget key</button>' : ''}</div>
+  <p class="hint" id="gh-msg" role="status"></p></div>`;
+}
 function siteHTML() {
   const wn = waNum();
   return `<div class="frm">
@@ -131,6 +141,7 @@ function siteHTML() {
   <div class="pnl"><h3>Home page hero</h3>${si('Headline', 'heroHeadline')}${si('Supporting text', 'heroSub', { area: 1, rows: 3 })}${upBlock('Hero photo', 'heroImage', 'image/*')}${upBlock('Hero video (optional, up to 20 MB)', 'heroVideo', 'video/*')}<label class="ck"><input type="checkbox" data-s="showVideos" ${cfg().showVideos ? 'checked' : ''}> Show videos on the site</label></div>
   <div class="pnl"><h3>WhatsApp messages</h3><p class="hint">The car name, code, price, details and link are added after this line automatically.</p>${si('Opening line for car enquiries', 'salesIntro', { area: 1, rows: 3 })}${si('Opening line for rental enquiries', 'rentIntro', { area: 1, rows: 3 })}</div>
   <div class="pnl"><h3>About page</h3>${si('Headline', 'aboutTitle')}${si('About text', 'about', { area: 1, rows: 8 })}<span class="hint">Leave a blank line between paragraphs.</span></div>
+${MODE === 'github' ? ghCard() : ''}
   <div class="pnl"><h3>Clean up</h3><button class="btn soft" data-act="rm-samples" type="button">Remove all sample listings and client news</button></div></div>`;
 }
 
@@ -147,6 +158,12 @@ async function shrink(file, max = 2000) {
 }
 const toDataURL = b => new Promise((res, rej) => { const f = new FileReader(); f.onload = () => res(f.result); f.onerror = () => rej(f.error); f.readAsDataURL(b); });
 async function uploadOne(file) {
+  if (MODE === 'github') {
+    const isV = file.type.startsWith('video/');
+    if (isV && file.size > 12 * 1024 * 1024) throw new Error('Videos must be under 12 MB. Trim or compress it first.');
+    const blob = isV ? file : await shrink(file);
+    return { url: await toDataURL(blob), type: isV ? 'video' : 'image' };
+  }
   if (MODE === 'vercel') {
     const isV = file.type.startsWith('video/');
     if (isV && file.size > 3.2 * 1024 * 1024) throw new Error('Videos must be under 3 MB here. Trim or compress it first.');

@@ -157,7 +157,20 @@ async function apiPost(path, body, method = 'POST') {
   if (!r.ok) { const e = new Error(j.error || ('Request failed (' + r.status + ')')); e.status = r.status; throw e; }
   return j;
 }
+const GH = {
+  get() { try { return JSON.parse(localStorage.getItem('big-gh') || '{}'); } catch { return {}; } },
+  set(o) { try { localStorage.setItem('big-gh', JSON.stringify(o)); return true; } catch { return false; } },
+  clear() { try { localStorage.removeItem('big-gh'); } catch { /* ignore */ } },
+};
 async function loadRemote() {
+  if (MODE === 'github') {
+    const c = new AbortController(); const tm = setTimeout(() => c.abort(), 2500);
+    try {
+      const r = await fetch('/data/state.json?v=' + Date.now(), { signal: c.signal, cache: 'no-store' });
+      if (r.ok) { const j = await r.json(); if (j && Array.isArray(j.cars)) { S = j; S.settings = Object.assign(defaults().settings, S.settings || {}); S.reviews = S.reviews || []; savedSnap = snap(); lastLocal = snap(); } }
+    } catch { /* no published data yet: use the built-in copy */ }
+    clearTimeout(tm); return;
+  }
   if (MODE !== 'vercel') return;
   const c = new AbortController(); const tm = setTimeout(() => c.abort(), 2500);
   try {

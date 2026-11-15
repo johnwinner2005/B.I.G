@@ -1,37 +1,25 @@
 # B.I.G Autos site
 
-Public site at `/`, admin at `/#admin` (or the "Staff" link in the footer).
+Plain website with a built-in admin dashboard. No database, no server code and no Vercel storage.
+When you press **Publish changes** in the dashboard, the changes are saved straight into this GitHub repository
+(`public/data/state.json` for the text, `public/uploads/` for photos and videos). Your host rebuilds the site by itself.
 
-## Deploy (about 5 minutes)
+## One-time setup
 
-1. Unzip this folder. Go to vercel.com, sign in, then **Add New → Project**.
-   - Easiest: put the folder in a GitHub repo and import it.
-   - Or install the CLI and run `npx vercel --prod` inside this folder.
-2. Leave the framework as **Other**. No build command is needed.
-3. After the first deploy, open the project, go to **Storage → Create Database → Blob**, name it anything, and **Connect** it to this project (all environments). This adds `BLOB_READ_WRITE_TOKEN` for you.
-4. **Redeploy** (Deployments → the latest one → Redeploy) so the site picks up the storage.
-5. Open `your-project.vercel.app/#admin`, sign in, change anything, tap **Publish changes**. Visitors see it within about a minute.
+1. **Host the repo.** On Vercel: Add New, Project, import this repo. Framework: Other. Output directory: `public`. No build command, no environment variables, no storage.
+2. **Make a GitHub key** (about 2 minutes): GitHub, Settings, Developer settings, Personal access tokens, Fine-grained tokens, Generate new token.
+   - Repository access: only this repository.
+   - Permissions: Contents, Read and write.
+3. **Connect the dashboard.** Open `your-site/#admin` and sign in. Go to Site, then Publishing. Paste the repository (`owner/name`), the branch (`main`) and the key. Press Save, then Test connection.
+4. Edit anything, then press **Publish changes**. The live site updates in about a minute.
+
+Do step 3 once on each phone or computer you publish from. The key is kept only on that device. Anyone without the key cannot change the site.
 
 ## Login
 
-Username `bigautos-admin`. The password is the one sent to you in chat. Only a hash is stored in this code.
-
-To change it, add these in Vercel → Settings → Environment Variables, then redeploy:
-- `ADMIN_USER` (optional, default `bigautos-admin`)
-- `ADMIN_PASSWORD` (your new password; it overrides the built-in one)
-- `SESSION_SECRET` (optional, any long random text)
+Username `bigautos-admin`. The password is the one sent to you in chat. This login only opens the dashboard on your device. The GitHub key is what protects publishing.
 
 ## Notes
-- Photos you upload are stored in Blob and the site keeps only their links. Keep each photo or video under 3 MB (photos are shrunk automatically).
-- Your edits save on your device first. They go live for everyone only when you press **Publish changes**.
-- To use your own domain later: Project → Settings → Domains.
-
-## Source
-
-`public/index.html` is a built file. The editable source is in `source/`
-(`p*.js`, `app.css`, `state.json`). Rebuild the Vercel package with
-`python3 mkvercel.py` from inside `source/`; it writes to `vercel-pkg/` and a zip.
-
-## Checking storage
-
-Open `/api/health` on your site. It shows `storageTokenFound: true` once a Blob store is connected and the project has been redeployed.
+- Photos are shrunk automatically. Videos must be under 12 MB.
+- Newly uploaded photos can look empty on your own screen for a minute, until the site finishes rebuilding.
+- The editable source is in `source/`. Rebuild the package with `python3 mkvercel.py` from inside `source/`.

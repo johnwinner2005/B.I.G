@@ -38,7 +38,63 @@ async function publishRemote() {
     toast('Could not publish: ' + (e.message || 'try again')); render(true);
   }
 }
+async function ghApi(g, path, method = 'GET', body) {
+  const r = await fetch((g.api || 'https://api.github.com') + path, { method, headers: { Authorization: 'Bearer ' + g.token, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28' }, body: body ? JSON.stringify(body) : undefined });
+  let j = {}; try { j = await r.json(); } catch { /* empty */ }
+  if (!r.ok) { const e = new Error(j.message || ('GitHub error ' + r.status)); e.status = r.status; throw e; }
+  return j;
+}
+const ghWhy = (e, g) => e.status === 401 ? 'GitHub did not accept the key. Make a new one and save it under Site, Publishing.'
+  : (e.status === 403 || e.status === 404) ? 'The key cannot write to ' + g.repo + '. It needs Contents: Read and write on that repository.'
+  : (e.status === 409 || e.status === 422) ? 'The repository changed while publishing. Try again.'
+  : (e.message || 'Could not reach GitHub');
+async function publishGithub() {
+  if (A.busy) return;
+  const g = GH.get();
+  if (!g.token || !/^[\w.-]+\/[\w.-]+$/.test(g.repo || '')) { toast('Add your GitHub details first: Site, then Publishing.'); A.tab = 'site'; render(); return; }
+  g.branch = g.branch || 'main';
+  A.busy = true; render(true);
+  try {
+    await saveLocal(true);
+    const out = JSON.parse(JSON.stringify(S)), files = new Map(), cache = new Map();
+    const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif', 'video/mp4': 'mp4', 'video/webm': 'webm' };
+    const walk = async o => {
+      for (const k of Object.keys(o)) {
+        const v = o[k];
+        if (typeof v === 'string' && /^data:(image|video)\//.test(v)) {
+          if (!cache.has(v)) {
+            const m = /^data:([^;]+);base64,(.*)$/s.exec(v); if (!m || !EXT[m[1]]) throw new Error('One file is not a supported photo or video type.');
+            const bytes = Uint8Array.from(atob(m[2]), ch => ch.charCodeAt(0));
+            const h = [...new Uint8Array(await crypto.subtle.digest('SHA-1', bytes))].map(x => x.toString(16).padStart(2, '0')).join('');
+            const path = 'uploads/' + h + '.' + EXT[m[1]];
+            files.set('public/' + path, m[2]); cache.set(v, '/' + path);
+          }
+          o[k] = cache.get(v);
+        } else if (v && typeof v === 'object') await walk(v);
+      }
+    };
+    await walk(out);
+    out.savedAt = Date.now();
+    files.set('public/data/state.json', btoa(unescape(encodeURIComponent(JSON.stringify(out)))));
+    const base = '/repos/' + g.repo;
+    const ref = await ghApi(g, base + '/git/ref/heads/' + encodeURIComponent(g.branch));
+    const head = ref.object.sha;
+    const commit = await ghApi(g, base + '/git/commits/' + head);
+    const tree = [];
+    for (const [path, b64] of files) {
+      const b = await ghApi(g, base + '/git/blobs', 'POST', { content: b64, encoding: 'base64' });
+      tree.push({ path, mode: '100644', type: 'blob', sha: b.sha });
+    }
+    const nt = await ghApi(g, base + '/git/trees', 'POST', { base_tree: commit.tree.sha, tree });
+    const nc = await ghApi(g, base + '/git/commits', 'POST', { message: 'Update site from dashboard', tree: nt.sha, parents: [head] });
+    await ghApi(g, base + '/git/refs/heads/' + encodeURIComponent(g.branch), 'PATCH', { sha: nc.sha });
+    S = out; savedSnap = snap(); lastLocal = snap();
+    try { await IDB.set('state', { at: S.savedAt, state: JSON.parse(JSON.stringify(S)) }); } catch { /* ignore */ }
+    A.busy = false; toast('Published. Your site will update in about a minute.'); render(true);
+  } catch (e) { A.busy = false; toast('Could not publish: ' + ghWhy(e, g)); render(true); }
+}
 async function publish() {
+  if (MODE === 'github') return publishGithub();
   if (MODE === 'vercel') return publishRemote();
   if (A.busy) return;
   const api = await window.claude?.use?.('artifact');
@@ -148,6 +204,18 @@ document.addEventListener('click', async e => {
   if (a === 'confirm-yes') { closeModal(); const f = confirmCb; confirmCb = null; f && f(); return; }
   /* admin */
   if (a === 'discard') { discardLocal(); return; }
+  if (a === 'gh-save' || a === 'gh-test' || a === 'gh-clear') {
+    const msg = $('#gh-msg'), say = t2 => { if (msg) msg.textContent = t2; };
+    if (a === 'gh-clear') { GH.clear(); toast('Key removed from this device'); render(true); return; }
+    const old = GH.get(), g = { ...old, repo: ($('#gh-repo')?.value || '').trim(), branch: ($('#gh-branch')?.value || '').trim() || 'main' };
+    const tk = ($('#gh-token')?.value || '').trim(); if (tk) g.token = tk;
+    if (!/^[\w.-]+\/[\w.-]+$/.test(g.repo)) { say('Repository must look like owner/name.'); return; }
+    if (a === 'gh-save') { GH.set(g); toast('Saved on this device'); render(true); return; }
+    if (!g.token) { say('Paste your GitHub key first.'); return; }
+    say('Checking…');
+    ghApi(g, '/repos/' + g.repo).then(r => say(r.permissions && r.permissions.push ? 'Connected. You can publish to ' + g.repo + '.' : 'The key can see the repository but cannot write to it. Give it Contents: Read and write.')).catch(e => say(ghWhy(e, g)));
+    return;
+  }
   if (a === 'skin') return setSkin(t.dataset.v);
   if (a === 'logout') { sess.del('big-admin'); if (MODE === 'vercel') apiPost('/api/login', undefined, 'DELETE').catch(() => {}); A.draft = null; A.rev = null; location.hash = '#home'; render(); return; }
   if (a === 'tab') { A.tab = t.dataset.t; A.draft = null; A.rev = null; A.q = ''; A.st = ''; render(); scrollTo(0, 0); return; }

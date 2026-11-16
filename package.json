@@ -2,7 +2,9 @@
   "name": "big-autos-site",
   "version": "1.0.0",
   "private": true,
-  "description": "B.I.G Autos website with admin dashboard",
+  "scripts": {
+    "start": "node server.js"
+  },
   "engines": {
     "node": ">=18"
   }

@@ -164,9 +164,9 @@ async function uploadOne(file) {
     const blob = isV ? file : await shrink(file);
     return { url: await toDataURL(blob), type: isV ? 'video' : 'image' };
   }
-  if (MODE === 'vercel') {
+  if (MODE === 'vercel' || MODE === 'server') {
     const isV = file.type.startsWith('video/');
-    if (isV && file.size > 3.2 * 1024 * 1024) throw new Error('Videos must be under 3 MB here. Trim or compress it first.');
+    if (isV && file.size > (MODE === 'server' ? 12 : 3.2) * 1024 * 1024) throw new Error('Videos must be under ' + (MODE === 'server' ? 12 : 3) + ' MB. Trim or compress it first.');
     const blob = isV ? file : await shrink(file);
     const r = await apiPost('/api/upload', { dataUrl: await toDataURL(blob) });
     return { url: r.url, type: isV ? 'video' : 'image' };

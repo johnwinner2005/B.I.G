@@ -467,7 +467,7 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 const slugify = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const MODE = 'github';
+let MODE = 'auto';
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage unavailable */ } },
@@ -623,6 +623,12 @@ const GH = {
   clear() { try { localStorage.removeItem('big-gh'); } catch { /* ignore */ } },
 };
 async function loadRemote() {
+  if (MODE === 'auto') {
+    MODE = 'github';
+    const c0 = new AbortController(); const t0 = setTimeout(() => c0.abort(), 2500);
+    try { const r = await fetch('/api/health', { cache: 'no-store', signal: c0.signal }); if (r.ok && (await r.json()).server === true) MODE = 'server'; } catch { /* static host */ }
+    clearTimeout(t0);
+  }
   if (MODE === 'github') {
     const c = new AbortController(); const tm = setTimeout(() => c.abort(), 2500);
     try {
@@ -631,7 +637,7 @@ async function loadRemote() {
     } catch { /* no published data yet: use the built-in copy */ }
     clearTimeout(tm); return;
   }
-  if (MODE !== 'vercel') return;
+  if (MODE !== 'vercel' && MODE !== 'server') return;
   const c = new AbortController(); const tm = setTimeout(() => c.abort(), 2500);
   try {
     const [st, se] = await Promise.all([
@@ -1362,9 +1368,9 @@ async function uploadOne(file) {
     const blob = isV ? file : await shrink(file);
     return { url: await toDataURL(blob), type: isV ? 'video' : 'image' };
   }
-  if (MODE === 'vercel') {
+  if (MODE === 'vercel' || MODE === 'server') {
     const isV = file.type.startsWith('video/');
-    if (isV && file.size > 3.2 * 1024 * 1024) throw new Error('Videos must be under 3 MB here. Trim or compress it first.');
+    if (isV && file.size > (MODE === 'server' ? 12 : 3.2) * 1024 * 1024) throw new Error('Videos must be under ' + (MODE === 'server' ? 12 : 3) + ' MB. Trim or compress it first.');
     const blob = isV ? file : await shrink(file);
     const r = await apiPost('/api/upload', { dataUrl: await toDataURL(blob) });
     return { url: r.url, type: isV ? 'video' : 'image' };
@@ -1475,7 +1481,7 @@ async function publishGithub() {
 }
 async function publish() {
   if (MODE === 'github') return publishGithub();
-  if (MODE === 'vercel') return publishRemote();
+  if (MODE === 'vercel' || MODE === 'server') return publishRemote();
   if (A.busy) return;
   const api = await window.claude?.use?.('artifact');
   if (!api) { toast('Publishing is only available when you open this page from your own Claude account. Your edits are saved on this device.'); return; }
@@ -1597,7 +1603,7 @@ document.addEventListener('click', async e => {
     return;
   }
   if (a === 'skin') return setSkin(t.dataset.v);
-  if (a === 'logout') { sess.del('big-admin'); if (MODE === 'vercel') apiPost('/api/login', undefined, 'DELETE').catch(() => {}); A.draft = null; A.rev = null; location.hash = '#home'; render(); return; }
+  if (a === 'logout') { sess.del('big-admin'); if (MODE === 'vercel' || MODE === 'server') apiPost('/api/login', undefined, 'DELETE').catch(() => {}); A.draft = null; A.rev = null; location.hash = '#home'; render(); return; }
   if (a === 'tab') { A.tab = t.dataset.t; A.draft = null; A.rev = null; A.q = ''; A.st = ''; render(); scrollTo(0, 0); return; }
   if (a === 'add-car') { A.tab = t.dataset.kind; A.draft = newCar(t.dataset.kind); A.slugTouched = false; A.errs = {}; render(); scrollTo(0, 0); return; }
   if (a === 'edit-car') { const c = S.cars.find(x => x.id === id); A.draft = JSON.parse(JSON.stringify(c)); A.slugTouched = true; A.errs = {}; render(); scrollTo(0, 0); return; }
@@ -1674,7 +1680,7 @@ document.addEventListener('submit', e => {
   const btn = e.target.querySelector('button[type=submit],button:not([type])'); if (btn) btn.disabled = true;
   const fail = () => { if (msg) msg.textContent = 'Username or password is not right.'; if (btn) btn.disabled = false; };
   (async () => {
-    if (MODE === 'vercel') {
+    if (MODE === 'vercel' || MODE === 'server') {
       try { await apiPost('/api/login', { user: u, pass: p }); sess.set('big-admin', '1'); render(); }
       catch (er) { if (msg) msg.textContent = er.status === 401 ? 'Username or password is not right.' : (er.message || 'Could not sign in.'); if (btn) btn.disabled = false; }
       return;

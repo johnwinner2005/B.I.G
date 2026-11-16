@@ -95,7 +95,7 @@ async function publishGithub() {
 }
 async function publish() {
   if (MODE === 'github') return publishGithub();
-  if (MODE === 'vercel') return publishRemote();
+  if (MODE === 'vercel' || MODE === 'server') return publishRemote();
   if (A.busy) return;
   const api = await window.claude?.use?.('artifact');
   if (!api) { toast('Publishing is only available when you open this page from your own Claude account. Your edits are saved on this device.'); return; }
@@ -217,7 +217,7 @@ document.addEventListener('click', async e => {
     return;
   }
   if (a === 'skin') return setSkin(t.dataset.v);
-  if (a === 'logout') { sess.del('big-admin'); if (MODE === 'vercel') apiPost('/api/login', undefined, 'DELETE').catch(() => {}); A.draft = null; A.rev = null; location.hash = '#home'; render(); return; }
+  if (a === 'logout') { sess.del('big-admin'); if (MODE === 'vercel' || MODE === 'server') apiPost('/api/login', undefined, 'DELETE').catch(() => {}); A.draft = null; A.rev = null; location.hash = '#home'; render(); return; }
   if (a === 'tab') { A.tab = t.dataset.t; A.draft = null; A.rev = null; A.q = ''; A.st = ''; render(); scrollTo(0, 0); return; }
   if (a === 'add-car') { A.tab = t.dataset.kind; A.draft = newCar(t.dataset.kind); A.slugTouched = false; A.errs = {}; render(); scrollTo(0, 0); return; }
   if (a === 'edit-car') { const c = S.cars.find(x => x.id === id); A.draft = JSON.parse(JSON.stringify(c)); A.slugTouched = true; A.errs = {}; render(); scrollTo(0, 0); return; }
@@ -294,7 +294,7 @@ document.addEventListener('submit', e => {
   const btn = e.target.querySelector('button[type=submit],button:not([type])'); if (btn) btn.disabled = true;
   const fail = () => { if (msg) msg.textContent = 'Username or password is not right.'; if (btn) btn.disabled = false; };
   (async () => {
-    if (MODE === 'vercel') {
+    if (MODE === 'vercel' || MODE === 'server') {
       try { await apiPost('/api/login', { user: u, pass: p }); sess.set('big-admin', '1'); render(); }
       catch (er) { if (msg) msg.textContent = er.status === 401 ? 'Username or password is not right.' : (er.message || 'Could not sign in.'); if (btn) btn.disabled = false; }
       return;

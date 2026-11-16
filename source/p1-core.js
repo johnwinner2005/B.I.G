@@ -7,7 +7,7 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 const slugify = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const MODE = '__MODE__';
+let MODE = '__MODE__';
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage unavailable */ } },
@@ -163,6 +163,12 @@ const GH = {
   clear() { try { localStorage.removeItem('big-gh'); } catch { /* ignore */ } },
 };
 async function loadRemote() {
+  if (MODE === 'auto') {
+    MODE = 'github';
+    const c0 = new AbortController(); const t0 = setTimeout(() => c0.abort(), 2500);
+    try { const r = await fetch('/api/health', { cache: 'no-store', signal: c0.signal }); if (r.ok && (await r.json()).server === true) MODE = 'server'; } catch { /* static host */ }
+    clearTimeout(t0);
+  }
   if (MODE === 'github') {
     const c = new AbortController(); const tm = setTimeout(() => c.abort(), 2500);
     try {
@@ -171,7 +177,7 @@ async function loadRemote() {
     } catch { /* no published data yet: use the built-in copy */ }
     clearTimeout(tm); return;
   }
-  if (MODE !== 'vercel') return;
+  if (MODE !== 'vercel' && MODE !== 'server') return;
   const c = new AbortController(); const tm = setTimeout(() => c.abort(), 2500);
   try {
     const [st, se] = await Promise.all([

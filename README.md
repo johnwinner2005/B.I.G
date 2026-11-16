@@ -1,25 +1,31 @@
 # B.I.G Autos site
 
-Plain website with a built-in admin dashboard. No database, no server code and no Vercel storage.
-When you press **Publish changes** in the dashboard, the changes are saved straight into this GitHub repository
-(`public/data/state.json` for the text, `public/uploads/` for photos and videos). Your host rebuilds the site by itself.
+The site and the admin dashboard in one small server. No database to install and no outside services.
+Edit a car or add a photo in the dashboard, press **Publish changes**, and customers see it straight away.
 
-## One-time setup
+Everything you add is kept in the `data/` folder next to this code: `data/state.json` (all text and settings),
+`data/uploads/` (photos and videos) and `data/backups/` (the last 30 published versions).
 
-1. **Host the repo.** On Vercel: Add New, Project, import this repo. Framework: Other. Output directory: `public`. No build command, no environment variables, no storage.
-2. **Make a GitHub key** (about 2 minutes): GitHub, Settings, Developer settings, Personal access tokens, Fine-grained tokens, Generate new token.
-   - Repository access: only this repository.
-   - Permissions: Contents, Read and write.
-3. **Connect the dashboard.** Open `your-site/#admin` and sign in. Go to Site, then Publishing. Paste the repository (`owner/name`), the branch (`main`) and the key. Press Save, then Test connection.
-4. Edit anything, then press **Publish changes**. The live site updates in about a minute.
+## Put it on your Hostinger VPS (about 10 minutes)
 
-Do step 3 once on each phone or computer you publish from. The key is kept only on that device. Anyone without the key cannot change the site.
+1. Point your domain at the VPS. In your domain's DNS add an **A record** for the domain (and `www`) with the VPS IP address.
+2. On the VPS (Hostinger's browser terminal works), install Docker if it is missing: `curl -fsSL https://get.docker.com | sh`
+3. Download the code: `git clone https://github.com/johnwinner2005/big-autos-main-site && cd big-autos-main-site`
+4. Create your settings: `cp .env.example .env` then `nano .env` and set `SITE_ADDRESS=yourdomain.com`
+5. Start it: `docker compose up -d --build`
+
+The site is live at your domain with HTTPS (Caddy gets the certificate by itself). Open `yourdomain.com/#admin` to sign in.
+
+**Update the code later:** `git pull && docker compose up -d --build`. Your photos and data are not touched.
+**Back up:** copy the `data/` folder.
 
 ## Login
 
-Username `bigautos-admin`. The password is the one sent to you in chat. This login only opens the dashboard on your device. The GitHub key is what protects publishing.
+Username `bigautos-admin`. The password is the one sent to you in chat. To use your own, put `ADMIN_USER` and `ADMIN_PASSWORD` in `.env` and run `docker compose up -d`.
 
 ## Notes
+- One admin. Anyone signed in can change the whole site, so keep the password private.
 - Photos are shrunk automatically. Videos must be under 12 MB.
-- Newly uploaded photos can look empty on your own screen for a minute, until the site finishes rebuilding.
-- The editable source is in `source/`. Rebuild the package with `python3 mkvercel.py` from inside `source/`.
+- Without Docker: `node server.js` works on any machine with Node 18 or newer. Use `PORT` and `DATA_DIR` to change the port and the data folder.
+- The editable source is in `source/`. Rebuild with `python3 mkpkg.py` from inside `source/`.
+- If you host only the `public/` folder on a static host, the dashboard falls back to saving into GitHub (see Site, Publishing).

@@ -46,7 +46,7 @@ async function ghApi(g, path, method = 'GET', body) {
 }
 const ghWhy = (e, g) => e.status === 401 ? 'GitHub did not accept the key. Make a new one and save it under Site, Publishing.'
   : (e.status === 403 || e.status === 404) ? 'The key cannot write to ' + g.repo + '. It needs Contents: Read and write on that repository.'
-  : (e.status === 409 || e.status === 422) ? 'The repository changed while publishing. Try again.'
+  : (e.status === 409 || e.status === 422) ? 'GitHub refused the update (' + (e.message || 'conflict') + '). Try again in a moment.'
   : (e.message || 'Could not reach GitHub');
 async function publishGithub() {
   if (A.busy) return;
@@ -77,20 +77,29 @@ async function publishGithub() {
     out.savedAt = Date.now();
     files.set('public/data/state.json', btoa(unescape(encodeURIComponent(JSON.stringify(out)))));
     const base = '/repos/' + g.repo;
-    const ref = await ghApi(g, base + '/git/ref/heads/' + encodeURIComponent(g.branch));
-    const head = ref.object.sha;
-    const commit = await ghApi(g, base + '/git/commits/' + head);
-    const tree = [];
-    const list = [...files];
+    const list = [...files], blobSha = new Map();
     for (let i = 0; i < list.length; i += 4) {
       await Promise.all(list.slice(i, i + 4).map(async ([path, b64]) => {
         const b = await ghApi(g, base + '/git/blobs', 'POST', { content: b64, encoding: 'base64' });
-        tree.push({ path, mode: '100644', type: 'blob', sha: b.sha });
+        blobSha.set(path, b.sha);
       }));
     }
-    const nt = await ghApi(g, base + '/git/trees', 'POST', { base_tree: commit.tree.sha, tree });
-    const nc = await ghApi(g, base + '/git/commits', 'POST', { message: 'Update site from dashboard', tree: nt.sha, parents: [head] });
-    await ghApi(g, base + '/git/refs/heads/' + encodeURIComponent(g.branch), 'PATCH', { sha: nc.sha });
+    const tree = [...blobSha].map(([path, sha]) => ({ path, mode: '100644', type: 'blob', sha }));
+    /* if someone else (or a code update) lands a commit while we publish, read the newest head and try again */
+    for (let tries = 1; ; tries++) {
+      try {
+        const ref = await ghApi(g, base + '/git/ref/heads/' + encodeURIComponent(g.branch));
+        const head = ref.object.sha;
+        const commit = await ghApi(g, base + '/git/commits/' + head);
+        const nt = await ghApi(g, base + '/git/trees', 'POST', { base_tree: commit.tree.sha, tree });
+        const nc = await ghApi(g, base + '/git/commits', 'POST', { message: 'Update site from dashboard', tree: nt.sha, parents: [head] });
+        await ghApi(g, base + '/git/refs/heads/' + encodeURIComponent(g.branch), 'PATCH', { sha: nc.sha });
+        break;
+      } catch (e) {
+        if ((e.status === 409 || e.status === 422) && tries < 4) { await new Promise(r => setTimeout(r, 600 * tries)); continue; }
+        throw e;
+      }
+    }
     S = out; savedSnap = snap(); lastLocal = snap();
     try { await IDB.set('state', { at: S.savedAt, state: JSON.parse(JSON.stringify(S)) }); } catch { /* ignore */ }
     A.busy = false; toast('Published. Your site will update in about a minute.'); render(true);

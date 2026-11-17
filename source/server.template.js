@@ -5,7 +5,7 @@ const http = require('http'), fs = require('fs'), path = require('path'), crypto
 
 const PORT = +process.env.PORT || 3000;
 const DATA = path.resolve(process.env.DATA_DIR || path.join(__dirname, 'data'));
-const PUB = path.join(__dirname, 'public');
+const PUB = [path.join(__dirname, 'public'), path.join(__dirname, '..', 'public')].find(d => fs.existsSync(path.join(d, 'index.html'))) || path.join(__dirname, 'public');
 const SEED = { user: '__USER__', salt: '__SALT__', iter: __ITER__, hash: '__HASH__' };
 fs.mkdirSync(path.join(DATA, 'uploads'), { recursive: true });
 fs.mkdirSync(path.join(DATA, 'backups'), { recursive: true });

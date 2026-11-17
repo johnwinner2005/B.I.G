@@ -6,6 +6,11 @@ Edit a car or add a photo in the dashboard, press **Publish changes**, and custo
 Everything you add is kept in the `data/` folder next to this code: `data/state.json` (all text and settings),
 `data/uploads/` (photos and videos) and `data/backups/` (the last 30 published versions).
 
+## Put it on Vercel (static, no setup)
+
+Import the repo in Vercel and deploy. `vercel.json` and `.vercelignore` already tell Vercel this is a plain static site, so you need no settings, build command or storage.
+On Vercel the dashboard saves into this GitHub repository: open `/#admin`, go to Site, then Publishing, and add a GitHub key (Contents: Read and write on this repo).
+
 ## Put it on your Hostinger VPS (about 10 minutes)
 
 1. Point your domain at the VPS. In your domain's DNS add an **A record** for the domain (and `www`) with the VPS IP address.
@@ -26,6 +31,6 @@ Username `bigautos-admin`. The password is the one sent to you in chat. To use y
 ## Notes
 - One admin. Anyone signed in can change the whole site, so keep the password private.
 - Photos are shrunk automatically. Videos must be under 12 MB.
-- Without Docker: `node server.js` works on any machine with Node 18 or newer. Use `PORT` and `DATA_DIR` to change the port and the data folder.
+- Without Docker: `node backend/server.js` works on any machine with Node 18 or newer. Use `PORT` and `DATA_DIR` to change the port and the data folder.
 - The editable source is in `source/`. Rebuild with `python3 mkpkg.py` from inside `source/`.
 - If you host only the `public/` folder on a static host, the dashboard falls back to saving into GitHub (see Site, Publishing).

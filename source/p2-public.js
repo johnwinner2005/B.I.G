@@ -66,7 +66,7 @@ function footer() {
   <div><h4>Browse</h4><a href="#cars">Cars for Sale</a><a href="#rentals">Exclusive Rentals</a><a href="#saved">Saved cars</a><a href="#reviews">Client News</a></div>
   <div><h4>Company</h4><a href="#about">About</a><a href="#contact">Contact</a></div>
   <div><h4>Reach us</h4>${waNum() ? `<a href="${esc(waLink('Hello B.I.G Autos'))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}${c.phone ? `<p class="num">${esc(c.phone)}</p>` : ''}${c.email ? `<p>${esc(c.email)}</p>` : ''}${soc.map(s => `<a href="${esc(/^https?:/.test(s[1]) ? s[1] : '#contact')}" target="_blank" rel="noopener">${s[0]}</a>`).join('')}${c.address ? `<p>${esc(c.address)}</p>` : ''}</div>
-  </div><div class="fine"><span>© ${new Date().getFullYear()} ${esc(c.name)}</span>${skinHTML()}<a href="#admin" style="color:var(--mute);padding:0;display:inline">Staff</a></div></div></footer>`;
+  </div><div class="fine"><span>© ${new Date().getFullYear()} ${esc(c.name)}</span><a class="staff" href="#admin">Staff</a>${skinHTML()}</div></div></footer>`;
 }
 
 /* ---------- cards ---------- */

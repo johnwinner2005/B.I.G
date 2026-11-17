@@ -436,3 +436,5 @@ html[data-theme="light"].solid .top .logo,html[data-theme="light"] .foot .logo{-
 .plan .more label:last-child{grid-column:1/-1}
 
 .login .showpw{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--hero-mute);margin-top:-6px}.login .showpw input{width:18px;height:18px;accent-color:var(--brand)}
+
+.foot .fine{flex-wrap:wrap;row-gap:12px}.foot .fine .staff{color:var(--mute);padding:0;display:inline;font-size:.85rem;opacity:.75}.foot .fine .staff:hover{opacity:1}.foot{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}

@@ -3,9 +3,10 @@ auth = open('p0-auth.js').read()
 USER, SALT, ITER, HASH = re.search(r"user: '([^']+)', salt: '([0-9a-f]+)', iter: (\d+), hash: '([0-9a-f]+)'", auth).groups()
 root = 'pkg/big-autos-site'
 shutil.rmtree('pkg', ignore_errors=True); os.makedirs(f'{root}/public'); os.makedirs(f'{root}/backend')
-os.system('python3 build.py /tmp/_p.html auto')
+shutil.rmtree('/tmp/_pk', ignore_errors=True); os.makedirs('/tmp/_pk'); os.system('python3 build.py /tmp/_pk/index.html auto'); shutil.copytree('/tmp/_pk/img', f'{root}/public/img')
 reset = ':root{color-scheme:dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;background:#07080B;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}'
-open(f'{root}/public/index.html', 'w').write('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="description" content="B.I.G Autos. Cars ready for sale and exclusive car rentals in Lagos, Nigeria."><meta name="theme-color" content="#CE3837"><style>' + reset + '</style></head><body>' + open('/tmp/_p.html').read() + '</body></html>')
+_d = open('/tmp/_pk/index.html').read(); _i = _d.index('<div id="root">')
+open(f'{root}/public/index.html', 'w').write('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="description" content="B.I.G Autos. Cars ready for sale and exclusive car rentals in Lagos, Nigeria."><meta name="theme-color" content="#CE3837"><style>' + reset + '</style>' + _d[:_i] + '</head><body>' + _d[_i:] + '</body></html>')
 srv = open('server.template.js').read().replace('__USER__', USER).replace('__SALT__', SALT).replace('__ITER__', ITER).replace('__HASH__', HASH)
 open(f'{root}/backend/server.js', 'w').write(srv)
 open(f'{root}/Dockerfile', 'w').write('FROM node:22-alpine\nWORKDIR /app\nCOPY backend/server.js ./server.js\nCOPY public ./public\nENV NODE_ENV=production DATA_DIR=/data\nEXPOSE 3000\nCMD ["node", "server.js"]\n')
@@ -43,7 +44,7 @@ open(f'{root}/Caddyfile', 'w').write('{$SITE_ADDRESS} {\n\tencode gzip\n\trevers
 open(f'{root}/.env.example', 'w').write('# Copy this file to .env on the server and fill it in.\n# Your domain, for example bigautos.com.ng (leave as :80 to test with the server IP, no HTTPS)\nSITE_ADDRESS=:80\n# Optional: choose your own admin login. Leave empty to use the built-in one.\nADMIN_USER=\nADMIN_PASSWORD=\n')
 open(f'{root}/.gitignore', 'w').write('node_modules\n.env\ndata/\n.vercel\n')
 json.dump({"name": "big-autos-site", "version": "1.0.0", "private": True, "engines": {"node": ">=18"}}, open(f'{root}/package.json', 'w'), indent=2)
-json.dump({"framework": None, "buildCommand": "", "installCommand": "", "outputDirectory": "public"}, open(f'{root}/vercel.json', 'w'), indent=2)
+json.dump({"framework": None, "buildCommand": "", "installCommand": "", "outputDirectory": "public", "headers": [{"source": "/img/(.*)", "headers": [{"key": "Cache-Control", "value": "public, max-age=31536000, immutable"}]}, {"source": "/uploads/(.*)", "headers": [{"key": "Cache-Control", "value": "public, max-age=31536000, immutable"}]}, {"source": "/data/state.json", "headers": [{"key": "Cache-Control", "value": "public, max-age=0, must-revalidate"}]}]}, open(f'{root}/vercel.json', 'w'), indent=2)
 open(f'{root}/.vercelignore', 'w').write("backend\nDockerfile\ndocker-compose.yml\nCaddyfile\n.env.example\nsource\ndata\n")
 open(f'{root}/README.md', 'w').write(f"""# B.I.G Autos site
 

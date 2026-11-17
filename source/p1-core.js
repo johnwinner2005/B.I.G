@@ -162,20 +162,21 @@ const GH = {
   set(o) { try { localStorage.setItem('big-gh', JSON.stringify(o)); return true; } catch { return false; } },
   clear() { try { localStorage.removeItem('big-gh'); } catch { /* ignore */ } },
 };
+const within = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
 async function loadRemote() {
   if (MODE === 'auto') {
-    MODE = 'github';
-    const c0 = new AbortController(); const t0 = setTimeout(() => c0.abort(), 2500);
-    try { const r = await fetch('/api/health', { cache: 'no-store', signal: c0.signal }); if (r.ok && (await r.json()).server === true) MODE = 'server'; } catch { /* static host */ }
-    clearTimeout(t0);
+    const h = window.__boot ? await within(window.__boot.h, 3000) : null;
+    MODE = h && h.server === true ? 'server' : 'github';
   }
-  if (MODE === 'github') {
-    const c = new AbortController(); const tm = setTimeout(() => c.abort(), 2500);
+  if (MODE === 'github' || MODE === 'server') {
     try {
-      const r = await fetch('/data/state.json?v=' + Date.now(), { signal: c.signal, cache: 'no-store' });
-      if (r.ok) { const j = await r.json(); if (j && Array.isArray(j.cars)) { S = j; S.settings = Object.assign(defaults().settings, S.settings || {}); S.reviews = S.reviews || []; savedSnap = snap(); lastLocal = snap(); } }
+      const st = await within(window.__boot ? window.__boot.s : fetch('/data/state.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null), 3500);
+      if (st && Array.isArray(st.cars)) { S = st; S.settings = Object.assign(defaults().settings, S.settings || {}); S.reviews = S.reviews || []; savedSnap = snap(); lastLocal = snap(); }
     } catch { /* no published data yet: use the built-in copy */ }
-    clearTimeout(tm); return;
+    if (MODE === 'server') {
+      try { const se = await within(fetch('/api/login', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null), 3000); if (se && se.admin) sess.set('big-admin', '1'); else sess.del('big-admin'); } catch { /* ignore */ }
+    }
+    return;
   }
   if (MODE !== 'vercel' && MODE !== 'server') return;
   const c = new AbortController(); const tm = setTimeout(() => c.abort(), 2500);
@@ -202,7 +203,7 @@ const carHash = c => (isRent(c) ? 'rental-' : 'car-') + c.slug;
 const carUrl = c => base() + '#' + carHash(c);
 const LIST_OK = c => (isRent(c) ? ['published', 'temp', 'unavailable'] : ['published', 'reserved']).includes(c.status);
 const mediaOf = c => (c.media || []).filter(m => m.type === 'image' || (cfg().showVideos && m.type === 'video'));
-const cover = c => U((c.media || []).find(m => m.type === 'image')?.src);
+const cover = c => { const m = (c.media || []).find(m => m.type === 'image'); return U(m && (m.thumb || m.src)); };
 const RATE_LABEL = { hourly: 'Hourly', half: '12 hours', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', custom: 'Custom' };
 const RATE_UNIT = { hourly: 'hour', half: '12 hrs', daily: 'day', weekly: 'week', monthly: 'month' };
 const activeRates = c => (c.rates || []).filter(r => r && (r.type === 'custom' ? true : +r.amount > 0));

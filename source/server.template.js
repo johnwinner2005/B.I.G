@@ -124,7 +124,7 @@ http.createServer(async (req, res) => {
     if (p === '/data/state.json') return serveFile(req, res, stateFile, false);
     const f = path.normalize(path.join(PUB, p === '/' ? 'index.html' : p));
     if (!f.startsWith(PUB)) { res.writeHead(403); return res.end(); }
-    return serveFile(req, res, f, false);
+    return serveFile(req, res, f, p.startsWith('/img/'));
   } catch (e) {
     return send(res, e.status || 500, { error: e.status ? e.message : 'Something went wrong' });
   }

@@ -146,30 +146,32 @@ ${MODE === 'github' ? ghCard() : ''}
 }
 
 /* ----- uploads ----- */
-async function shrink(file, max = 2000) {
+async function shrink(file, max = 1800, q = .82) {
   if (!/^image\/(jpe?g|png|webp|heic|avif|gif)$/i.test(file.type)) return file;
   try {
     const bmp = await createImageBitmap(file); const s = Math.min(1, max / Math.max(bmp.width, bmp.height));
     const cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * s); cv.height = Math.round(bmp.height * s);
     cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
-    const blob = await new Promise(r => cv.toBlob(r, 'image/webp', .86));
+    const blob = await new Promise(r => cv.toBlob(r, 'image/webp', q));
     return blob && blob.size < file.size ? blob : file;
   } catch { return file; }
 }
 const toDataURL = b => new Promise((res, rej) => { const f = new FileReader(); f.onload = () => res(f.result); f.onerror = () => rej(f.error); f.readAsDataURL(b); });
-async function uploadOne(file) {
+async function uploadOne(file, wantThumb) {
   if (MODE === 'github') {
     const isV = file.type.startsWith('video/');
     if (isV && file.size > 12 * 1024 * 1024) throw new Error('Videos must be under 12 MB. Trim or compress it first.');
     const blob = isV ? file : await shrink(file);
-    return { url: await toDataURL(blob), type: isV ? 'video' : 'image' };
+    const out = { url: await toDataURL(blob), type: isV ? 'video' : 'image' };
+    if (wantThumb && !isV) out.thumb = await toDataURL(await shrink(file, 720, .78));
+    return out;
   }
   if (MODE === 'vercel' || MODE === 'server') {
     const isV = file.type.startsWith('video/');
     if (isV && file.size > (MODE === 'server' ? 12 : 3.2) * 1024 * 1024) throw new Error('Videos must be under ' + (MODE === 'server' ? 12 : 3) + ' MB. Trim or compress it first.');
     const blob = isV ? file : await shrink(file);
-    const r = await apiPost('/api/upload', { dataUrl: await toDataURL(blob) });
-    return { url: r.url, type: isV ? 'video' : 'image' };
+    const [r, t] = await Promise.all([apiPost('/api/upload', { dataUrl: await toDataURL(blob) }), wantThumb && !isV ? shrink(file, 720, .78).then(async tb => apiPost('/api/upload', { dataUrl: await toDataURL(tb) })) : null]);
+    return { url: r.url, type: isV ? 'video' : 'image', thumb: t ? t.url : undefined };
   }
   const api = await window.claude?.use?.('assets');
   if (!api) throw new Error('Uploads need owner access to this page.');

@@ -81,9 +81,12 @@ async function publishGithub() {
     const head = ref.object.sha;
     const commit = await ghApi(g, base + '/git/commits/' + head);
     const tree = [];
-    for (const [path, b64] of files) {
-      const b = await ghApi(g, base + '/git/blobs', 'POST', { content: b64, encoding: 'base64' });
-      tree.push({ path, mode: '100644', type: 'blob', sha: b.sha });
+    const list = [...files];
+    for (let i = 0; i < list.length; i += 4) {
+      await Promise.all(list.slice(i, i + 4).map(async ([path, b64]) => {
+        const b = await ghApi(g, base + '/git/blobs', 'POST', { content: b64, encoding: 'base64' });
+        tree.push({ path, mode: '100644', type: 'blob', sha: b.sha });
+      }));
     }
     const nt = await ghApi(g, base + '/git/trees', 'POST', { base_tree: commit.tree.sha, tree });
     const nc = await ghApi(g, base + '/git/commits', 'POST', { message: 'Update site from dashboard', tree: nt.sha, parents: [head] });
@@ -153,8 +156,8 @@ async function handleFiles(input) {
   let ok = 0;
   for (const f of files) {
     try {
-      const r = await uploadOne(f); ok++;
-      if (input.id === 'up') A.draft.media.push({ type: r.type, src: r.url, alt: '' });
+      const r = await uploadOne(f, input.id === 'up'); ok++;
+      if (input.id === 'up') A.draft.media.push({ type: r.type, src: r.url, ...(r.thumb ? { thumb: r.thumb } : {}), alt: '' });
       else if (input.id === 'rv-up') A.rev.photo = r.url;
       else if (input.dataset.upS) cfg()[input.dataset.upS] = r.url;
     } catch (err) { toast(err.message || 'Upload failed'); }

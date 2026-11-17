@@ -117,7 +117,7 @@ function home() {
   const heroMedia = c.heroVideo && c.showVideos
     ? `<video src="${esc(c.heroVideo)}" autoplay muted loop playsinline poster="${esc(c.heroImage || U(''))}"></video>`
     : (c.heroImage ? `<img src="${esc(c.heroImage)}" alt="">` : '');
-  const heroShots = (c.heroVideo && c.showVideos) || c.heroImage ? '' : `<div class="hero-photos" aria-hidden="true">${HERO.map((s, i) => `<img src="${s}" alt="" style="--i:${i}">`).join('')}</div>`;
+  const heroShots = (c.heroVideo && c.showVideos) || c.heroImage ? '' : `<div class="hero-photos" aria-hidden="true">${HERO.map((s, i) => `<img src="${s}" alt="" style="--i:${i}" decoding="async" ${i ? 'loading="lazy"' : 'fetchpriority="high"'}>`).join('')}</div>`;
   const rv = S.reviews.filter(r => r.visible !== false);
   const bandItems = ['Cars for sale', 'Exclusive rentals', 'Inspect before you pay', 'Selling nationwide'];
   const bandHTML = bandItems.map(t => `<span>${t}</span>`).join('');

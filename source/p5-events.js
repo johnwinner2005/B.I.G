@@ -29,7 +29,7 @@ async function publishRemote() {
     };
     await walk(out);
     await apiPost('/api/publish', out);
-    S = out; savedSnap = snap(); lastLocal = snap();
+    S = out; savedSnap = snap(); lastLocal = snap(); pubMark();
     try { await IDB.set('state', { at: S.savedAt || Date.now(), state: JSON.parse(JSON.stringify(S)) }); } catch { /* ignore */ }
     A.busy = false; toast('Published. The live site is updated.'); render(true);
   } catch (e) {
@@ -100,7 +100,7 @@ async function publishGithub() {
         throw e;
       }
     }
-    S = out; savedSnap = snap(); lastLocal = snap();
+    S = out; savedSnap = snap(); lastLocal = snap(); pubMark();
     try { await IDB.set('state', { at: S.savedAt, state: JSON.parse(JSON.stringify(S)) }); } catch { /* ignore */ }
     A.busy = false; toast('Published. Your site will update in about a minute.'); render(true);
   } catch (e) { A.busy = false; toast('Could not publish: ' + ghWhy(e, g)); render(true); }

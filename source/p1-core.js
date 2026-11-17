@@ -131,7 +131,11 @@ S.settings = Object.assign(defaults().settings, S.settings || {});
 S.cars = S.cars || []; S.reviews = S.reviews || [];
 const snap = () => JSON.stringify(S, (k, v) => k === 'savedAt' ? undefined : v);
 let savedSnap = snap();
-const dirty = () => snap() !== savedSnap;
+let baselineKnown = true;
+/* right after a publish the host needs a minute to go live: treat exactly-what-was-published as saved for 15 minutes */
+const pubMark = () => { try { localStorage.setItem('big-pub', JSON.stringify({ s: snap(), at: Date.now() })); } catch { /* ignore */ } };
+const justPublished = () => { try { const p = JSON.parse(localStorage.getItem('big-pub') || 'null'); return !!p && Date.now() - p.at < 900000 && p.s === snap(); } catch { return false; } };
+const dirty = () => baselineKnown && snap() !== savedSnap && !justPublished();
 /* ---------- on-device autosave (IndexedDB) so admin edits survive reloads before publishing ---------- */
 const IDB = {
   open() { return new Promise((res, rej) => { try { const r = indexedDB.open('big-autos', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } }); },
@@ -169,10 +173,28 @@ async function loadRemote() {
     MODE = h && h.server === true ? 'server' : 'github';
   }
   if (MODE === 'github' || MODE === 'server') {
-    try {
-      const st = await within(window.__boot ? window.__boot.s : fetch('/data/state.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null), 3500);
-      if (st && Array.isArray(st.cars)) { S = st; S.settings = Object.assign(defaults().settings, S.settings || {}); S.reviews = S.reviews || []; savedSnap = snap(); lastLocal = snap(); }
-    } catch { /* no published data yet: use the built-in copy */ }
+    /* the live data is the baseline for "unpublished changes". If it is slow to arrive we must not compare against the stale built-in copy, so we keep trying in the background */
+    let st = null;
+    try { st = await within(window.__boot ? window.__boot.s : fetch('/data/state.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null), 6000); } catch { /* retry below */ }
+    if (st && Array.isArray(st.cars)) { S = st; S.settings = Object.assign(defaults().settings, S.settings || {}); S.reviews = S.reviews || []; savedSnap = snap(); lastLocal = snap(); }
+    else {
+      baselineKnown = false;
+      (async () => {
+        for (let i = 0; i < 6 && !baselineKnown; i++) {
+          try {
+            const r = await fetch('/data/state.json', { cache: 'no-cache' });
+            if (r.status === 404) { baselineKnown = true; break; }
+            const j = r.ok ? await r.json() : null;
+            if (j && Array.isArray(j.cars)) {
+              j.settings = Object.assign(defaults().settings, j.settings || {}); j.reviews = j.reviews || [];
+              savedSnap = JSON.stringify(j, (k, v) => k === 'savedAt' ? undefined : v); baselineKnown = true; render(true); break;
+            }
+          } catch { /* try again */ }
+          await new Promise(r => setTimeout(r, 2500));
+        }
+        if (!baselineKnown) baselineKnown = true;
+      })();
+    }
     if (MODE === 'server') {
       try { const se = await within(fetch('/api/login', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null), 3000); if (se && se.admin) sess.set('big-admin', '1'); else sess.del('big-admin'); } catch { /* ignore */ }
     }

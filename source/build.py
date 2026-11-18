@@ -10,6 +10,12 @@ for f in files:
     parts.append(s+'\n')
 js=''.join(parts).replace('__MODE__',mode)
 state=open('state.json').read().strip().replace('</','<\\/') if os.path.exists('state.json') else 'null'
+if mode != 'artifact' and state != 'null':
+    import json as _j
+    _s = _j.loads(state.replace('<\\/', '</'))
+    _s['cars'] = [c for c in _s.get('cars', []) if not c.get('sample')]
+    _s['reviews'] = [r for r in _s.get('reviews', []) if not r.get('sample')]
+    state = _j.dumps(_s, separators=(',', ':')).replace('</', '<\\/')
 if mode != 'artifact':
     out = os.path.dirname(os.path.abspath(sys.argv[1])); os.makedirs(os.path.join(out, 'img'), exist_ok=True)
     def ext(m):

@@ -147,7 +147,7 @@ let lastLocal = snap();
 async function loadLocal() {
   try {
     const l = await IDB.get('state');
-    if (l && l.state && l.at > (S.savedAt || 0)) { S = l.state; S.settings = Object.assign(defaults().settings, S.settings || {}); S.cars = S.cars || []; S.reviews = S.reviews || []; S.savedAt = l.at; lastLocal = snap(); }
+    if (sess.get('big-admin') && l && l.state && l.at > (S.savedAt || 0)) { S = l.state; S.settings = Object.assign(defaults().settings, S.settings || {}); S.cars = S.cars || []; S.reviews = S.reviews || []; S.savedAt = l.at; lastLocal = snap(); }
   } catch { /* storage unavailable */ }
 }
 async function saveLocal(force) {
@@ -187,6 +187,8 @@ async function loadRemote() {
             const j = r.ok ? await r.json() : null;
             if (j && Array.isArray(j.cars)) {
               j.settings = Object.assign(defaults().settings, j.settings || {}); j.reviews = j.reviews || [];
+              const admin = !!sess.get('big-admin');
+              if (!admin) { S = j; S.cars = S.cars || []; lastLocal = snap(); }
               savedSnap = JSON.stringify(j, (k, v) => k === 'savedAt' ? undefined : v); baselineKnown = true; render(true); break;
             }
           } catch { /* try again */ }

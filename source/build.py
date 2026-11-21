@@ -2,13 +2,16 @@ import sys, os, re, base64, hashlib
 mode = sys.argv[2] if len(sys.argv) > 2 else 'artifact'
 head='<title>B.I.G Autos</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,300..800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">\n'
 css=open('app.css').read()
-files=['p0-brand.js','p0-auth.js','p0-photos.js','p0-hero.js','p1-core.js','p2-public.js','p3-fx-viewer.js','p4-admin.js','p5-events.js']
+files=['p0-brand.js','p0-auth.js','p0-photos.js','p0-hero.js','p1-core.js','p1b-cloud.js','p2-public.js','p3-fx-viewer.js','p4-admin.js','p5-events.js']
 parts=[]
 for f in files:
     s=open(f).read()
-    if f=='p0-auth.js' and mode=='vercel': s='const ADMIN = null; /* real login is checked on the server */\n'
+    if f=='p0-auth.js' and mode in ('vercel','cloud'): s='const ADMIN = null; /* real login is checked on the server */\n'
     parts.append(s+'\n')
 js=''.join(parts).replace('__MODE__',mode)
+import json as _cj
+_cc=_cj.load(open('cloud.json')) if os.path.exists('cloud.json') else {'url':'','key':''}
+js=js.replace('__SUPA_URL__',_cc['url'].rstrip('/')).replace('__SUPA_KEY__',_cc['key'])
 state=open('state.json').read().strip().replace('</','<\\/') if os.path.exists('state.json') else 'null'
 if mode != 'artifact' and state != 'null':
     import json as _j
@@ -26,8 +29,9 @@ if mode != 'artifact':
     js = re.sub(rx, ext, js); state = re.sub(rx, ext, state); css = re.sub(rx, ext, css)
     first = re.search(r"const HERO = \[\"([^\"]+)\"", js)
     boot = ('<script>try{var t=JSON.parse(localStorage.getItem("big-skin"));document.documentElement.setAttribute("data-theme",t==="light"?"light":"dark")}catch(e){document.documentElement.setAttribute("data-theme","dark")}'
+            + ('window.__boot={c:(function(u,k){function F(p){return fetch(u+"/rest/v1/"+p,{headers:{apikey:k}}).then(function(r){return r.ok?r.json():null}).catch(function(){return null})}return{cars:F("cars?select=*&order=created_at.desc"),reviews:F("reviews?select=*&order=created_at.desc"),settings:F("site_settings?select=settings&id=eq.main")}})("'+_cc['url'].rstrip('/')+'","'+_cc['key']+'")}</script>\n' if mode=='cloud' else
             'window.__boot={h:fetch("/api/health",{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).catch(function(){return null}),'
-            's:fetch("/data/state.json",{cache:"no-cache"}).then(function(r){return r.ok?r.json():null}).catch(function(){return null})}</script>\n')
+            's:fetch("/data/state.json",{cache:"no-cache"}).then(function(r){return r.ok?r.json():null}).catch(function(){return null})}</script>\n'))
     pre = ('<link rel="preload" as="image" href="' + first.group(1) + '" fetchpriority="high">\n') if first else ''
     fonts = re.search(r'<link rel="stylesheet" href="(https://fonts.googleapis.com[^"]+)">', head).group(1)
     head = head.replace('<link rel="stylesheet" href="' + fonts + '">', '<link rel="stylesheet" href="' + fonts + '" media="print" onload="this.media=\'all\'"><noscript><link rel="stylesheet" href="' + fonts + '"></noscript>')

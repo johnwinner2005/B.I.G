@@ -145,12 +145,14 @@ const IDB = {
 };
 let lastLocal = snap();
 async function loadLocal() {
+  if (MODE === 'cloud') return;
   try {
     const l = await IDB.get('state');
     if (sess.get('big-admin') && l && l.state && l.at > (S.savedAt || 0)) { S = l.state; S.settings = Object.assign(defaults().settings, S.settings || {}); S.cars = S.cars || []; S.reviews = S.reviews || []; S.savedAt = l.at; lastLocal = snap(); }
   } catch { /* storage unavailable */ }
 }
 async function saveLocal(force) {
+  if (MODE === 'cloud') return;
   const now = snap(); if (!force && now === lastLocal) return;
   lastLocal = now; S.savedAt = Date.now();
   try { await IDB.set('state', { at: S.savedAt, state: JSON.parse(JSON.stringify(S)) }); } catch { /* storage unavailable */ }
@@ -168,6 +170,7 @@ const GH = {
 };
 const within = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
 async function loadRemote() {
+  if (MODE === 'cloud') { try { await cloudLoad(); } catch (e) { CS.fallback = true; } return; }
   if (MODE === 'auto') {
     const h = window.__boot ? await within(window.__boot.h, 3000) : null;
     MODE = h && h.server === true ? 'server' : 'github';

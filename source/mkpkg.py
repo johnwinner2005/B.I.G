@@ -3,7 +3,7 @@ auth = open('p0-auth.js').read()
 USER, SALT, ITER, HASH = re.search(r"user: '([^']+)', salt: '([0-9a-f]+)', iter: (\d+), hash: '([0-9a-f]+)'", auth).groups()
 root = 'pkg/big-autos-site'
 shutil.rmtree('pkg', ignore_errors=True); os.makedirs(f'{root}/public'); os.makedirs(f'{root}/backend')
-shutil.rmtree('/tmp/_pk', ignore_errors=True); os.makedirs('/tmp/_pk'); os.system('python3 build.py /tmp/_pk/index.html auto'); shutil.copytree('/tmp/_pk/img', f'{root}/public/img')
+shutil.rmtree('/tmp/_pk', ignore_errors=True); os.makedirs('/tmp/_pk'); os.system('python3 build.py /tmp/_pk/index.html cloud'); shutil.copytree('/tmp/_pk/img', f'{root}/public/img')
 reset = ':root{color-scheme:dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;background:#07080B;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}'
 _d = open('/tmp/_pk/index.html').read(); _i = _d.index('<div id="root">')
 open(f'{root}/public/index.html', 'w').write('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="description" content="B.I.G Autos. Cars ready for sale and exclusive car rentals in Lagos, Nigeria."><meta name="theme-color" content="#CE3837"><style>' + reset + '</style>' + _d[:_i] + '</head><body>' + _d[_i:] + '</body></html>')
@@ -57,7 +57,7 @@ Everything you add is kept in the `data/` folder next to this code: `data/state.
 ## Put it on Vercel (static, no setup)
 
 Import the repo in Vercel and deploy. `vercel.json` and `.vercelignore` already tell Vercel this is a plain static site, so you need no settings, build command or storage.
-On Vercel the dashboard saves into this GitHub repository: open `/#admin`, go to Site, then Publishing, and add a GitHub key (Contents: Read and write on this repo).
+This site now uses **Lovable Cloud** for everything you edit: cars, rentals, client news, settings and photos. Saving in the dashboard is live on every device straight away. There is no GitHub key and no publish step. See `SETUP-CLOUD.md` for the one-time setup (staff account and admin role).
 
 ## Put it on your Hostinger VPS (about 10 minutes)
 

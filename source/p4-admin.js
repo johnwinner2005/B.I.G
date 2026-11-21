@@ -16,8 +16,8 @@ const NAVS = [['overview', 'Overview', IC.grid], ['sale', 'Cars for sale', IC.ca
 
 function loginHTML() {
   return `<div class="login"><form class="box frm" id="login" autocomplete="off"><a class="brand" href="#home" style="color:#fff">${logo()}</a><h1>Staff sign in</h1>
-  <label>Username<input class="field" id="lg-e" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" value=""></label><label>Password<input class="field" id="lg-p" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false"></label><label class="showpw"><input type="checkbox" data-act="showpw"> Show password</label>
-  <button class="btn block" type="submit">Sign in</button>
+  <label>${MODE === 'cloud' ? 'Email' : 'Username'}<input class="field" id="lg-e" type="${MODE === 'cloud' ? 'email' : 'text'}" autocomplete="username" autocapitalize="none" spellcheck="false" value=""></label><label>Password<input class="field" id="lg-p" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false"></label><label class="showpw"><input type="checkbox" data-act="showpw"> Show password</label>
+  <button class="btn block" type="submit">Sign in</button>${MODE === 'cloud' ? '<button class="btn soft block" type="button" data-act="cloud-signup">First time? Create the staff account</button>' : ''}
   <p class="login-note" id="lg-msg" role="alert"></p><a href="#home" style="text-align:center;color:var(--hero-mute)">Back to site</a></form></div>`;
 }
 function adminHTML() {
@@ -35,18 +35,18 @@ function adminHTML() {
   <div><div class="ad-bar"><div class="in"><h1>${esc(title)}</h1><div style="display:flex;gap:8px;align-items:center">${act}${editing ? '' : `<a class="ibtn" href="#home" aria-label="View site">${IC.eye}</a><button class="ibtn" data-act="logout" aria-label="Sign out" style="">${IC.out}</button>`}</div></div></div>
   <main class="ad-main"><div class="in">${body}</div></main></div>
   <nav class="ad-tabs" aria-label="Admin">${NAVS.map(n => `<button class="${A.tab === n[0] ? 'on' : ''}" data-act="tab" data-t="${n[0]}">${n[2]}<span>${n[1]}</span></button>`).join('')}</nav>
-  ${dirty() ? `<div class="pubbar"><div><span>Saved on this device. Not live for visitors yet.</span><button class="btn soft sm" data-act="discard" ${A.busy ? 'disabled' : ''}>Discard</button><button class="btn sm" data-act="publish" ${A.busy ? 'disabled' : ''}>${A.busy ? 'Publishing…' : 'Publish changes'}</button></div></div>` : ''}</div>`;
+  ${MODE === 'cloud' ? `<div class="pubbar" id="cchip" style="display:none"></div>` : dirty() ? `<div class="pubbar"><div><span>Saved on this device. Not live for visitors yet.</span><button class="btn soft sm" data-act="discard" ${A.busy ? 'disabled' : ''}>Discard</button><button class="btn sm" data-act="publish" ${A.busy ? 'disabled' : ''}>${A.busy ? 'Publishing…' : 'Publish changes'}</button></div></div>` : ''}</div>`;
 }
 
 function overviewHTML() {
   const cs = S.cars, n = f => cs.filter(f).length;
   const samples = cs.filter(c => c.sample).length + S.reviews.filter(r => r.sample).length;
-  return `${!waNum() ? `<div class="notice"><b>Add your WhatsApp number.</b> Every enquiry button needs it.<button class="btn sm" data-act="tab" data-t="site">Open site settings</button></div>` : ''}
+  return `${MODE === 'cloud' && CS.fallback ? `<div class="notice info"><b>Your site is not in Lovable Cloud yet.</b> Visitors are seeing the last published copy. Copy it into Cloud once, and from then on every change you save is live on every device.<button class="btn sm" data-act="cloud-import">Copy my site into Cloud</button></div>` : ''}${!waNum() ? `<div class="notice"><b>Add your WhatsApp number.</b> Every enquiry button needs it.<button class="btn sm" data-act="tab" data-t="site">Open site settings</button></div>` : ''}
   ${samples ? `<div class="notice info"><b>${samples} sample ${samples === 1 ? 'record is' : 'records are'} live on the site.</b> Sample listings carry a "Sample" tag. Remove them before you launch.<button class="btn sm soft" data-act="rm-samples">Remove all samples</button></div>` : ''}
   <div class="kpis"><div class="kpi"><b>${n(c => !isRent(c) && c.status === 'published')}</b><span>Cars for sale live</span></div><div class="kpi"><b>${n(c => isRent(c) && c.status === 'published')}</b><span>Rentals live</span></div><div class="kpi"><b>${n(c => c.status === 'draft')}</b><span>Drafts to finish</span></div><div class="kpi"><b>${n(c => c.status === 'sold')}</b><span>Sold</span></div></div>
   <div class="pnl" style="margin-top:14px"><h3>Quick actions</h3><div class="acts" style="margin:0"><button class="btn" data-act="add-car" data-kind="sale">+ Add car for sale</button><button class="btn" data-act="add-car" data-kind="rent">+ Add rental</button><button class="btn soft" data-act="tab" data-t="reviews">Manage client news</button><button class="btn soft" data-act="tab" data-t="site">Site settings</button></div></div>
-  <div class="pnl"><h3>How publishing works</h3><p class="hint">Edits you make here are a preview on this device. Press <b>Publish changes</b> to send them to everyone. Status controls what visitors see: Draft and Archived are hidden, Reserved and Sold are labelled, and Sold cars leave the catalogue but their link still works.</p></div>
-  <div class="pnl"><h3>Good to know</h3><p class="hint">The sign-in on this screen is a placeholder for the build phase. Real protection comes from who can publish this page. WhatsApp taps are not counted yet, and the "Saved" hearts are stored on each visitor's own phone.</p></div>`;
+  ${MODE === 'cloud' ? '<div class="pnl"><h3>How saving works</h3><p class="hint">Every change you make here saves to Lovable Cloud straight away and is live on every phone and computer. There is nothing to publish. Draft and Archived are hidden from visitors, Reserved and Sold are labelled, and Sold cars leave the catalogue but their link still works.</p></div>' : `<div class="pnl"><h3>How publishing works</h3><p class="hint">Edits you make here are a preview on this device. Press <b>Publish changes</b> to send them to everyone. Status controls what visitors see: Draft and Archived are hidden, Reserved and Sold are labelled, and Sold cars leave the catalogue but their link still works.</p></div>`}
+  ${MODE === 'cloud' ? '<div class="pnl"><h3>Good to know</h3><p class="hint">Only staff accounts with the admin role can change anything. WhatsApp taps are not counted yet, and the Saved hearts are stored on each visitor\'s own phone.</p></div>' : `<div class="pnl"><h3>Good to know</h3><p class="hint">The sign-in on this screen is a placeholder for the build phase. Real protection comes from who can publish this page. WhatsApp taps are not counted yet, and the "Saved" hearts are stored on each visitor's own phone.</p></div>`}`;
 }
 function adminList(tab) {
   const rent = tab === 'rent';
@@ -158,6 +158,7 @@ async function shrink(file, max = 1800, q = .82) {
 }
 const toDataURL = b => new Promise((res, rej) => { const f = new FileReader(); f.onload = () => res(f.result); f.onerror = () => rej(f.error); f.readAsDataURL(b); });
 async function uploadOne(file, wantThumb) {
+  if (MODE === 'cloud') return wantThumb ? cUploadPhoto(file) : cSmallImage(file);
   if (MODE === 'github') {
     const isV = file.type.startsWith('video/');
     if (isV && file.size > 12 * 1024 * 1024) throw new Error('Videos must be under 12 MB. Trim or compress it first.');

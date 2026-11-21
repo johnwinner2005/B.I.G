@@ -106,6 +106,7 @@ async function publishGithub() {
   } catch (e) { A.busy = false; toast('Could not publish: ' + ghWhy(e, g)); render(true); }
 }
 async function publish() {
+  if (MODE === 'cloud') { CS.failedSnap = null; CS.state = 'idle'; return cSync(); }
   if (MODE === 'github') return publishGithub();
   if (MODE === 'vercel' || MODE === 'server') return publishRemote();
   if (A.busy) return;
@@ -166,7 +167,7 @@ async function handleFiles(input) {
   for (const f of files) {
     try {
       const r = await uploadOne(f, input.id === 'up'); ok++;
-      if (input.id === 'up') A.draft.media.push({ type: r.type, src: r.url, ...(r.thumb ? { thumb: r.thumb } : {}), alt: '' });
+      if (input.id === 'up') A.draft.media.push({ type: r.type, src: r.url, ...(r.thumb ? { thumb: r.thumb } : {}), ...(r.path ? { path: r.path, ...(r.thumbPath ? { thumbPath: r.thumbPath } : {}) } : {}), alt: '' });
       else if (input.id === 'rv-up') A.rev.photo = r.url;
       else if (input.dataset.upS) cfg()[input.dataset.upS] = r.url;
     } catch (err) { toast(err.message || 'Upload failed'); }
@@ -229,7 +230,7 @@ document.addEventListener('click', async e => {
     return;
   }
   if (a === 'skin') return setSkin(t.dataset.v);
-  if (a === 'logout') { sess.del('big-admin'); if (MODE === 'vercel' || MODE === 'server') apiPost('/api/login', undefined, 'DELETE').catch(() => {}); A.draft = null; A.rev = null; location.hash = '#home'; render(); return; }
+  if (a === 'logout') { sess.del('big-admin'); if (MODE === 'cloud') { cAuth.clear(); location.hash = '#home'; location.reload(); return; } if (MODE === 'vercel' || MODE === 'server') apiPost('/api/login', undefined, 'DELETE').catch(() => {}); A.draft = null; A.rev = null; location.hash = '#home'; render(); return; }
   if (a === 'tab') { A.tab = t.dataset.t; A.draft = null; A.rev = null; A.q = ''; A.st = ''; render(); scrollTo(0, 0); return; }
   if (a === 'add-car') { A.tab = t.dataset.kind; A.draft = newCar(t.dataset.kind); A.slugTouched = false; A.errs = {}; render(); scrollTo(0, 0); return; }
   if (a === 'edit-car') { const c = S.cars.find(x => x.id === id); A.draft = JSON.parse(JSON.stringify(c)); A.slugTouched = true; A.errs = {}; render(); scrollTo(0, 0); return; }
@@ -249,6 +250,14 @@ document.addEventListener('click', async e => {
   }
   if (a === 'm-url') { const v = ($('#m-url').value || '').trim(); if (!/^https?:\/\//.test(v)) { toast('Paste a full address starting with https://'); return; } A.draft.media.push({ type: /\.(mp4|webm)$/i.test(v) ? 'video' : 'image', src: v, alt: '' }); render(true); return; }
   if (a === 'publish') return publish();
+  if (a === 'cloud-import') { toast('Copying your site into Cloud…'); return cSync(true); }
+  if (a === 'cloud-signup') {
+    const em = ($('#lg-e').value || '').trim().toLowerCase(), pw = ($('#lg-p').value || '').trim(), msg = $('#lg-msg');
+    if (!em || pw.length < 8) { if (msg) msg.textContent = 'Type your email and a password of at least 8 characters above, then press this again.'; return; }
+    try { await cSignup(em, pw); if (msg) msg.textContent = 'Account created. If you get a confirmation email, open it first. Then sign in above. The account also needs the admin role before it can change the site.'; }
+    catch (er) { if (msg) msg.textContent = er.message || 'Could not create the account.'; }
+    return;
+  }
   if (a === 'rm-samples') { confirmBox('Remove all samples?', 'Every listing and client news tagged Sample will be deleted.', 'Remove', () => { S.cars = S.cars.filter(c => !c.sample); S.reviews = S.reviews.filter(r => !r.sample); toast('Samples removed'); render(true); }); return; }
   if (a === 'add-rev') { A.tab = 'reviews'; A.rev = { id: uid(), name: '', text: '', rating: 5, carId: '', photo: '', visible: true, date: Date.now() }; render(); scrollTo(0, 0); return; }
   if (a === 'edit-rev') { A.rev = { ...S.reviews.find(r => r.id === id) }; render(); scrollTo(0, 0); return; }
@@ -306,6 +315,11 @@ document.addEventListener('submit', e => {
   const btn = e.target.querySelector('button[type=submit],button:not([type])'); if (btn) btn.disabled = true;
   const fail = () => { if (msg) msg.textContent = 'Username or password is not right.'; if (btn) btn.disabled = false; };
   (async () => {
+    if (MODE === 'cloud') {
+      try { await cLogin(u, p); render(); await loadRemote(); render(); }
+      catch (er) { if (msg) msg.textContent = er.code === 'NOT_ADMIN' ? 'This account is signed in, but it has not been given the admin role yet. Ask Lovable to add it, or run the one-line step in the setup note.' : (er.message || 'Could not sign in.'); if (btn) btn.disabled = false; }
+      return;
+    }
     if (MODE === 'vercel' || MODE === 'server') {
       try { await apiPost('/api/login', { user: u, pass: p }); sess.set('big-admin', '1'); render(); }
       catch (er) { if (msg) msg.textContent = er.status === 401 ? 'Username or password is not right.' : (er.message || 'Could not sign in.'); if (btn) btn.disabled = false; }

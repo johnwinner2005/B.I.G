@@ -1,5 +1,6 @@
 /* ---------- ui helpers ---------- */
 function toast(msg) {
+  if (MODE === 'cloud') msg = String(msg).replace(/\.? ?Publish to make it live\.?/, '.').replace('Status changed..', 'Status changed.');
   $$('.toast').forEach(t => t.remove());
   const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), 3200);

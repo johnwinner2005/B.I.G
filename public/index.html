@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="description" content="B.I.G Autos. Cars ready for sale and exclusive car rentals in Lagos, Nigeria."><meta name="theme-color" content="#CE3837"><style>:root{color-scheme:dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;background:#07080B;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style><script>try{var t=JSON.parse(localStorage.getItem("big-skin"));document.documentElement.setAttribute("data-theme",t==="light"?"light":"dark")}catch(e){document.documentElement.setAttribute("data-theme","dark")}window.__boot={h:fetch("/api/health",{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).catch(function(){return null}),s:fetch("/data/state.json",{cache:"no-cache"}).then(function(r){return r.ok?r.json():null}).catch(function(){return null})}</script>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="description" content="B.I.G Autos. Cars ready for sale and exclusive car rentals in Lagos, Nigeria."><meta name="theme-color" content="#CE3837"><style>:root{color-scheme:dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;background:#07080B;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style><script>try{var t=JSON.parse(localStorage.getItem("big-skin"));document.documentElement.setAttribute("data-theme",t==="light"?"light":"dark")}catch(e){document.documentElement.setAttribute("data-theme","dark")}window.__boot={c:(function(u,k){function F(p){return fetch(u+"/rest/v1/"+p,{headers:{apikey:k}}).then(function(r){return r.ok?r.json():null}).catch(function(){return null})}return{cars:F("cars?select=*&order=created_at.desc"),reviews:F("reviews?select=*&order=created_at.desc"),settings:F("site_settings?select=settings&id=eq.main")}})("https://c--10a0a01c-2ecf-45c3-bf2e-a99ad3c17271-prod.lovable.cloud","sb_publishable_OOA4Bl3wQhAQ3ee3QrKmug_wU9PEVz9")}</script>
 <link rel="preload" as="image" href="/img/b0bbf7d5529a.jpg" fetchpriority="high">
 <title>B.I.G Autos</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -460,8 +460,7 @@ const LOGO_W = '/img/bb2cb1cfc551.png';
 const LOGO_RATIO = 0.8445;
 const BRAND_RED = '#CE3837';
 
-/* ---------- seeded admin login (hash only, no plain password in the page) ---------- */
-const ADMIN = { user: 'bigautos-admin', salt: '2be0d93fbd355d7a7832c02793bc8db6', iter: 120000, hash: 'b2b910fbd7b1a7d85260e32938afa5fd3def677c031227ecd6812d201a8eb8e9' };
+const ADMIN = null; /* real login is checked on the server */
 
 /* ---------- demo photos cropped from the B.I.G Autos rental flyer ---------- */
 const PHOTOS = {"gle": ["/img/1d4dfa5ea416.jpg", "/img/ba8b782de16d.jpg"], "prado23": ["/img/f1f3277772da.jpg", "/img/211f23c5c995.jpg"], "prado15": ["/img/189cb0fed883.jpg", "/img/39e2a6ad3a9c.jpg"], "lx570": ["/img/dce3161e1c1a.jpg", "/img/d247d54c0948.jpg"], "venza": ["/img/f7f4dfacf69f.jpg", "/img/66c39983a8ab.jpg"], "gx550": ["/img/0757098e3a00.jpg", "/img/48a8c1b9b28c.jpg"]};
@@ -479,7 +478,7 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 const slugify = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-let MODE = 'auto';
+let MODE = 'cloud';
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage unavailable */ } },
@@ -617,12 +616,14 @@ const IDB = {
 };
 let lastLocal = snap();
 async function loadLocal() {
+  if (MODE === 'cloud') return;
   try {
     const l = await IDB.get('state');
     if (sess.get('big-admin') && l && l.state && l.at > (S.savedAt || 0)) { S = l.state; S.settings = Object.assign(defaults().settings, S.settings || {}); S.cars = S.cars || []; S.reviews = S.reviews || []; S.savedAt = l.at; lastLocal = snap(); }
   } catch { /* storage unavailable */ }
 }
 async function saveLocal(force) {
+  if (MODE === 'cloud') return;
   const now = snap(); if (!force && now === lastLocal) return;
   lastLocal = now; S.savedAt = Date.now();
   try { await IDB.set('state', { at: S.savedAt, state: JSON.parse(JSON.stringify(S)) }); } catch { /* storage unavailable */ }
@@ -640,6 +641,7 @@ const GH = {
 };
 const within = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
 async function loadRemote() {
+  if (MODE === 'cloud') { try { await cloudLoad(); } catch (e) { CS.fallback = true; } return; }
   if (MODE === 'auto') {
     const h = window.__boot ? await within(window.__boot.h, 3000) : null;
     MODE = h && h.server === true ? 'server' : 'github';
@@ -762,8 +764,226 @@ const isFav = id => favs().includes(id);
 function toggleFav(id) { const f = favs(); const i = f.indexOf(id); i < 0 ? f.push(id) : f.splice(i, 1); store.set('big-favs', f); return i < 0; }
 const isAdmin = () => sess.get('big-admin') === '1';
 
+/* ---------- Lovable Cloud backend (database, photo storage, staff sign-in) ----------
+   Public visitors read published cars, client news and settings straight from the Cloud database.
+   The signed-in admin saves straight to it, so every change is live on every device with no publish step. */
+const CLOUD = { url: 'https://c--10a0a01c-2ecf-45c3-bf2e-a99ad3c17271-prod.lovable.cloud', key: 'sb_publishable_OOA4Bl3wQhAQ3ee3QrKmug_wU9PEVz9', bucket: 'big-autos-media-private' };
+const CS = { base: { cars: new Map(), reviews: new Map(), settings: '' }, busy: false, again: false, state: 'idle', err: '', failedSnap: null, fallback: false };
+const cAuth = {
+  get() { try { return JSON.parse(localStorage.getItem('big-cloud') || 'null'); } catch { return null; } },
+  set(o) { try { localStorage.setItem('big-cloud', JSON.stringify(o)); } catch { /* storage unavailable */ } },
+  clear() { try { localStorage.removeItem('big-cloud'); } catch { /* ignore */ } },
+};
+const cUuid = s => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s || '');
+const cNewId = () => (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, ch => { const r = Math.random() * 16 | 0; return (ch === 'x' ? r : (r & 3 | 8)).toString(16); }));
+function cHeaders(tok, extra) {
+  const h = Object.assign({ apikey: CLOUD.key }, extra || {});
+  const bearer = tok || (CLOUD.key.startsWith('sb_') ? '' : CLOUD.key);
+  if (bearer) h.Authorization = 'Bearer ' + bearer;
+  return h;
+}
+async function cToken() {
+  const a = cAuth.get(); if (!a) return null;
+  if (a.exp - 60 > Date.now() / 1000) return a.at;
+  try {
+    const r = await fetch(CLOUD.url + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', headers: cHeaders(null, { 'content-type': 'application/json' }), body: JSON.stringify({ refresh_token: a.rt }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.access_token) { if (r.status >= 400 && r.status < 500) cAuth.clear(); return null; }
+    cAuth.set({ at: j.access_token, rt: j.refresh_token, exp: Math.floor(Date.now() / 1000) + (j.expires_in || 3600), uid: a.uid, email: a.email });
+    return j.access_token;
+  } catch { return a.at; }
+}
+async function cRest(path, o = {}) {
+  const tok = o.auth ? await cToken() : null;
+  if (o.auth && !tok) { const e = new Error('Your session ended. Sign in again.'); e.status = 401; throw e; }
+  const r = await fetch(CLOUD.url + '/rest/v1/' + path, {
+    method: o.method || 'GET',
+    headers: cHeaders(tok, Object.assign({}, o.body !== undefined ? { 'content-type': 'application/json' } : {}, o.prefer ? { Prefer: o.prefer } : {})),
+    body: o.body !== undefined ? JSON.stringify(o.body) : undefined,
+  });
+  if (!r.ok) {
+    let j = {}; try { j = await r.json(); } catch { /* not json */ }
+    const e = new Error(j.message || ('Request failed (' + r.status + ')')); e.status = r.status; e.code = j.code; throw e;
+  }
+  if (r.status === 204) return null;
+  try { return await r.json(); } catch { return null; }
+}
+
+/* ---------- photo storage ---------- */
+const cPub = p => CLOUD.url + '/storage/v1/object/public/' + CLOUD.bucket + '/' + p.split('/').map(encodeURIComponent).join('/');
+async function cSign(paths, tok) {
+  const u = [...new Set((paths || []).filter(Boolean))], m = new Map();
+  if (!u.length) return m;
+  try {
+    const r = await within(fetch(CLOUD.url + '/storage/v1/object/sign/' + CLOUD.bucket, { method: 'POST', headers: cHeaders(tok, { 'content-type': 'application/json' }), body: JSON.stringify({ expiresIn: 43200, paths: u }) }), 8000);
+    const j = r && r.ok ? await r.json() : [];
+    (Array.isArray(j) ? j : []).forEach(x => { if (x && x.signedURL && !x.error) m.set(x.path, CLOUD.url + '/storage/v1' + x.signedURL); });
+  } catch { /* fall back to public addresses below */ }
+  u.forEach(p => { if (!m.has(p)) m.set(p, cPub(p)); });
+  return m;
+}
+const cExt = t => ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif', 'video/mp4': 'mp4', 'video/webm': 'webm' }[t] || 'bin');
+async function cUpload(blob, folder = 'cars') {
+  const tok = await cToken(); if (!tok) { const e = new Error('Your session ended. Sign in again.'); e.status = 401; throw e; }
+  const path = folder + '/' + cNewId() + '.' + cExt(blob.type);
+  const r = await fetch(CLOUD.url + '/storage/v1/object/' + CLOUD.bucket + '/' + path, { method: 'POST', headers: cHeaders(tok, { 'content-type': blob.type || 'application/octet-stream', 'cache-control': 'max-age=31536000' }), body: blob });
+  if (!r.ok) { let j = {}; try { j = await r.json(); } catch { /* ignore */ } const e = new Error(r.status === 403 || r.status === 401 ? 'Photo upload was refused. Sign in as staff and try again.' : (j.message || j.error || 'Photo upload failed')); e.status = r.status; throw e; }
+  return path;
+}
+/* a listing photo: full size + small thumbnail, both stored; returns addresses ready to show */
+async function cUploadPhoto(file) {
+  const isV = file.type.startsWith('video/');
+  if (isV && file.size > 40 * 1024 * 1024) throw new Error('Videos must be under 40 MB. Trim or compress it first.');
+  const full = isV ? file : await shrink(file);
+  const [path, thumbPath] = await Promise.all([cUpload(full), isV ? null : shrink(file, 720, .78).then(b => cUpload(b))]);
+  const tok = await cToken(); const urls = await cSign([path, thumbPath], tok);
+  return { type: isV ? 'video' : 'image', path, thumbPath: thumbPath || undefined, url: urls.get(path), thumb: thumbPath ? urls.get(thumbPath) : undefined };
+}
+/* small pictures kept inside the record itself (logo, client photo): the private photo bucket only serves listing photos to visitors */
+async function cSmallImage(file) {
+  if (file.type.startsWith('video/')) throw new Error('Videos can only be added to listings.');
+  return { url: await toDataURL(await shrink(file, 900, .72)), type: 'image' };
+}
+
+/* ---------- mapping between database rows and the app's own records ---------- */
+const cNum = v => (v === '' || v == null || isNaN(+v)) ? null : +v;
+function cCarFromRow(r, urls) {
+  const media = [];
+  (r.media || []).forEach(m => {
+    if (!m || m.type === 'thumb') return;
+    if (m.path) media.push({ type: m.type || 'image', path: m.path, ...(m.thumb ? { thumbPath: m.thumb } : {}), src: urls.get(m.path) || '', ...(m.thumb ? { thumb: urls.get(m.thumb) || '' } : {}), alt: m.alt || '' });
+    else if (m.url) media.push({ type: m.type || 'image', src: m.url, alt: m.alt || '' });
+  });
+  return { id: r.id, kind: r.kind, code: r.code, slug: r.slug, make: r.make, model: r.model, year: r.year || '', trim: r.trim || '', price: Number(r.price) || 0, priceVisible: r.price_visible !== false, condition: r.condition || '', mileage: r.mileage == null ? '' : Number(r.mileage), transmission: r.transmission || '', fuel: r.fuel || '', engine: r.engine || '', drivetrain: r.drivetrain || '', body: r.body || '', extColor: r.exterior_color || '', intColor: r.interior_color || '', seats: r.seats == null ? '' : r.seats, reg: r.registration || '', duty: r.customs_duty || '', accident: r.accident_history || '', summary: r.summary || '', desc: r.description || '', features: r.features || [], media, rates: (r.rates || []).map(x => ({ type: x.type, amount: x.amount, note: x.note || '' })), chauffeur: !!r.chauffeur, selfDrive: !!r.self_drive, minDuration: r.minimum_duration || '', deposit: r.deposit || '', fuelPolicy: r.fuel_policy || '', mileageLimit: r.mileage_limit || '', pickup: r.pickup || '', terms: r.terms || '', status: r.status || 'draft', featured: !!r.featured, created: Date.parse(r.created_at) || Date.now() };
+}
+function cMediaOut(list) {
+  const out = [];
+  (list || []).forEach(m => {
+    if (m.path) { out.push({ type: m.type || 'image', path: m.path, ...(m.thumbPath ? { thumb: m.thumbPath } : {}), alt: m.alt || '' }); if (m.thumbPath && m.thumbPath !== m.path) out.push({ type: 'thumb', path: m.thumbPath }); }
+    else if (/^https?:/.test(m.src || '')) out.push({ type: m.type || 'image', url: m.src, alt: m.alt || '' });
+  });
+  return out;
+}
+function cCarToRow(c) {
+  return { id: c.id, kind: c.kind, code: c.code, slug: c.slug, make: c.make || '', model: c.model || '', year: Math.round(+c.year) || 0, trim: c.trim || '', price: +c.price || 0, price_visible: c.priceVisible !== false, condition: c.condition || '', mileage: cNum(c.mileage), transmission: c.transmission || '', fuel: c.fuel || '', engine: c.engine || '', drivetrain: c.drivetrain || '', body: c.body || '', exterior_color: c.extColor || '', interior_color: c.intColor || '', seats: cNum(c.seats) == null ? null : Math.round(+c.seats), registration: c.reg || '', customs_duty: c.duty || '', accident_history: c.accident || '', summary: c.summary || '', description: c.desc || '', features: c.features || [], media: cMediaOut(c.media), status: c.status || 'draft', featured: !!c.featured, rates: (c.rates || []).map(r => ({ type: r.type, amount: +r.amount || 0, ...(r.note ? { note: r.note } : {}) })), chauffeur: !!c.chauffeur, self_drive: !!c.selfDrive, minimum_duration: c.minDuration || '', deposit: c.deposit || '', fuel_policy: c.fuelPolicy || '', mileage_limit: c.mileageLimit || '', pickup: c.pickup || '', terms: c.terms || '' };
+}
+const cRevFromRow = r => ({ id: r.id, name: r.name, text: r.body, rating: r.rating || 5, carId: r.car_id || '', carNote: r.car_note || '', photo: r.photo_path || '', visible: r.visible !== false, date: Date.parse(r.created_at) || Date.now() });
+const cRevToRow = r => ({ id: r.id, name: r.name || '', body: r.text || '', rating: Math.min(5, Math.max(1, +r.rating || 5)), car_id: cUuid(r.carId) ? r.carId : null, car_note: r.carNote || '', photo_path: r.photo || '', visible: r.visible !== false });
+const cKey = row => JSON.stringify(row);
+
+/* ---------- reading ---------- */
+async function cIsAdmin() {
+  const a = cAuth.get(); if (!a || !a.uid) return false;
+  try { const rows = await cRest('user_roles?select=role&role=eq.admin&user_id=eq.' + encodeURIComponent(a.uid), { auth: true }); return Array.isArray(rows) && rows.length > 0; } catch { return false; }
+}
+function cApply(cars, revs, setRow, urls) {
+  const ns = { v: 1, settings: Object.assign(defaults().settings, (setRow && setRow.settings) || {}), cars: cars.map(r => cCarFromRow(r, urls)), reviews: revs.map(cRevFromRow) };
+  S = ns;
+  CS.base.cars = new Map(S.cars.map(c => { const row = cCarToRow(c); return [row.id, cKey(row)]; }));
+  CS.base.reviews = new Map(S.reviews.map(r => { const row = cRevToRow(r); return [row.id, cKey(row)]; }));
+  CS.base.settings = cKey(S.settings);
+  savedSnap = snap(); lastLocal = snap();
+}
+async function cloudLoad() {
+  let admin = false;
+  if (cAuth.get()) { admin = await cIsAdmin(); if (admin) sess.set('big-admin', '1'); else sess.del('big-admin'); } else sess.del('big-admin');
+  const tok = admin ? await cToken() : null;
+  const B = window.__boot && window.__boot.c;
+  const q = (k, p) => within((B && !admin) ? B[k] : cRest(p, { auth: admin }).catch(() => null), 8000);
+  const [cars, revs, set] = await Promise.all([q('cars', 'cars?select=*&order=created_at.desc'), q('reviews', 'reviews?select=*&order=created_at.desc'), q('settings', 'site_settings?select=settings&id=eq.main')]);
+  const ok = Array.isArray(cars) && Array.isArray(revs);
+  if (ok && !(cars.length === 0 && (!Array.isArray(set) || set.length === 0))) {
+    const paths = []; cars.forEach(c => (c.media || []).forEach(m => { if (m && m.path) paths.push(m.path); if (m && m.thumb) paths.push(m.thumb); }));
+    const urls = await cSign(paths, tok);
+    cApply(cars, revs, Array.isArray(set) ? set[0] : null, urls);
+    CS.fallback = false; return;
+  }
+  /* Cloud not set up yet (or unreachable): show the last published copy so the site is never empty */
+  CS.fallback = true;
+  try {
+    const st = await within(fetch('/data/state.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null), 6000);
+    if (st && Array.isArray(st.cars)) { S = st; S.settings = Object.assign(defaults().settings, S.settings || {}); S.reviews = S.reviews || []; savedSnap = snap(); lastLocal = snap(); }
+  } catch { /* keep the built-in copy */ }
+}
+
+/* ---------- sign in ---------- */
+async function cLogin(email, pass) {
+  const r = await fetch(CLOUD.url + '/auth/v1/token?grant_type=password', { method: 'POST', headers: cHeaders(null, { 'content-type': 'application/json' }), body: JSON.stringify({ email, password: pass }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.access_token) { const e = new Error(r.status === 400 ? 'Email or password is not right.' : (j.error_description || j.msg || 'Could not sign in.')); e.status = r.status; throw e; }
+  cAuth.set({ at: j.access_token, rt: j.refresh_token, exp: Math.floor(Date.now() / 1000) + (j.expires_in || 3600), uid: j.user && j.user.id, email: (j.user && j.user.email) || email });
+  if (!(await cIsAdmin())) { cAuth.clear(); const e = new Error('This account is signed in, but it has not been given staff access yet.'); e.code = 'NOT_ADMIN'; throw e; }
+  sess.set('big-admin', '1');
+}
+async function cSignup(email, pass) {
+  const r = await fetch(CLOUD.url + '/auth/v1/signup', { method: 'POST', headers: cHeaders(null, { 'content-type': 'application/json' }), body: JSON.stringify({ email, password: pass }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.msg || j.error_description || j.message || 'Could not create the account.');
+}
+
+/* ---------- saving (live for everyone straight away) ---------- */
+async function cEnsureMedia(m) {
+  if (m.path || /^https?:/.test(m.src || '')) return;
+  if (!m.src) return;
+  const blobOf = async u => { const r = await fetch(u); if (!r.ok) throw new Error('Could not read a photo to copy it into Cloud.'); return r.blob(); };
+  const full = await blobOf(m.src); const isV = (full.type || '').startsWith('video/');
+  m.path = await cUpload(full);
+  if (!isV) {
+    const tb = m.thumb && m.thumb !== m.src ? await blobOf(m.thumb) : await shrink(full, 720, .78);
+    m.thumbPath = await cUpload(tb);
+  }
+  const urls = await cSign([m.path, m.thumbPath], await cToken());
+  m.src = urls.get(m.path); if (m.thumbPath) m.thumb = urls.get(m.thumbPath); else delete m.thumb;
+}
+function cChip() {
+  const el = document.getElementById('cchip'); if (!el) return;
+  const bad = CS.state === 'error', busy = CS.busy || (dirty() && !bad);
+  if (!bad && !busy) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.innerHTML = bad ? `<div><span>Could not save: ${esc(CS.err)}</span><button class="btn sm" data-act="publish">Try again</button></div>` : `<div><span>Saving to the live site…</span></div>`;
+}
+async function cSync(force) {
+  if (CS.busy) { CS.again = true; return; }
+  CS.busy = true; CS.state = 'saving'; cChip();
+  try {
+    S.cars.forEach(c => { if (!cUuid(c.id)) { const old = c.id; c.id = cNewId(); S.reviews.forEach(r => { if (r.carId === old) r.carId = c.id; }); } });
+    S.reviews.forEach(r => { if (!cUuid(r.id)) r.id = cNewId(); });
+    const copying = S.cars.some(c => c.media.some(m => !m.path && m.src && !/^https?:/.test(m.src)));
+    if (copying) toast('Copying your photos into Cloud. This can take a minute.');
+    for (const c of S.cars) for (const m of c.media) await cEnsureMedia(m);
+    const startSnap = snap();
+    const carRows = S.cars.map(cCarToRow), revRows = S.reviews.map(cRevToRow), setKey = cKey(S.settings);
+    const gone = [...CS.base.cars.keys()].filter(id => !carRows.some(r => r.id === id));
+    const goneRev = [...CS.base.reviews.keys()].filter(id => !revRows.some(r => r.id === id));
+    const chCars = carRows.filter(r => force || CS.base.cars.get(r.id) !== cKey(r));
+    const chRevs = revRows.filter(r => force || CS.base.reviews.get(r.id) !== cKey(r));
+    const setChanged = force || setKey !== CS.base.settings;
+    const now = new Date().toISOString(), up = (t, rows) => cRest(t + '?on_conflict=id', { method: 'POST', body: rows.map(r => Object.assign({ updated_at: now }, r)), prefer: 'resolution=merge-duplicates,return=minimal', auth: true });
+    if (goneRev.length) await cRest('reviews?id=in.(' + goneRev.join(',') + ')', { method: 'DELETE', auth: true });
+    if (gone.length) await cRest('cars?id=in.(' + gone.join(',') + ')', { method: 'DELETE', auth: true });
+    for (let i = 0; i < chCars.length; i += 20) await up('cars', chCars.slice(i, i + 20));
+    for (let i = 0; i < chRevs.length; i += 20) await up('reviews', chRevs.slice(i, i + 20));
+    if (setChanged) await cRest('site_settings?on_conflict=id', { method: 'POST', body: [{ id: 'main', settings: S.settings, updated_at: now }], prefer: 'resolution=merge-duplicates,return=minimal', auth: true });
+    CS.base.cars = new Map(carRows.map(r => [r.id, cKey(r)])); CS.base.reviews = new Map(revRows.map(r => [r.id, cKey(r)])); CS.base.settings = setKey;
+    const wasFallback = CS.fallback;
+    savedSnap = startSnap; CS.state = 'saved'; CS.err = ''; CS.failedSnap = null; CS.fallback = false;
+    if (wasFallback && !A.draft && !A.rev) render(true);
+    if (chCars.length || chRevs.length || gone.length || goneRev.length || setChanged) toast('Saved. Live on every device.');
+  } catch (e) {
+    CS.state = 'error'; CS.failedSnap = snap();
+    if (e && e.status === 401) { sess.del('big-admin'); cAuth.clear(); CS.err = 'Your session ended. Sign in again.'; render(); }
+    else if (e && (e.status === 409 || e.code === '23505')) CS.err = 'Another listing already uses that code or web address. Change it and try again.';
+    else if (e && (e.status === 403 || e.code === '42501')) CS.err = 'This account is not allowed to change the site. It needs the admin role.';
+    else CS.err = (e && e.message) || 'Check your connection and try again.';
+  }
+  CS.busy = false; cChip();
+  if (CS.again) { CS.again = false; if (dirty()) cSync(); }
+}
+setInterval(() => { if (MODE === 'cloud' && isAdmin() && !CS.busy && dirty() && snap() !== CS.failedSnap) cSync(); }, 1000);
+
 /* ---------- ui helpers ---------- */
 function toast(msg) {
+  if (MODE === 'cloud') msg = String(msg).replace(/\.? ?Publish to make it live\.?/, '.').replace('Status changed..', 'Status changed.');
   $$('.toast').forEach(t => t.remove());
   const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), 3200);
@@ -1168,8 +1388,8 @@ const NAVS = [['overview', 'Overview', IC.grid], ['sale', 'Cars for sale', IC.ca
 
 function loginHTML() {
   return `<div class="login"><form class="box frm" id="login" autocomplete="off"><a class="brand" href="#home" style="color:#fff">${logo()}</a><h1>Staff sign in</h1>
-  <label>Username<input class="field" id="lg-e" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" value=""></label><label>Password<input class="field" id="lg-p" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false"></label><label class="showpw"><input type="checkbox" data-act="showpw"> Show password</label>
-  <button class="btn block" type="submit">Sign in</button>
+  <label>${MODE === 'cloud' ? 'Email' : 'Username'}<input class="field" id="lg-e" type="${MODE === 'cloud' ? 'email' : 'text'}" autocomplete="username" autocapitalize="none" spellcheck="false" value=""></label><label>Password<input class="field" id="lg-p" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false"></label><label class="showpw"><input type="checkbox" data-act="showpw"> Show password</label>
+  <button class="btn block" type="submit">Sign in</button>${MODE === 'cloud' ? '<button class="btn soft block" type="button" data-act="cloud-signup">First time? Create the staff account</button>' : ''}
   <p class="login-note" id="lg-msg" role="alert"></p><a href="#home" style="text-align:center;color:var(--hero-mute)">Back to site</a></form></div>`;
 }
 function adminHTML() {
@@ -1187,18 +1407,18 @@ function adminHTML() {
   <div><div class="ad-bar"><div class="in"><h1>${esc(title)}</h1><div style="display:flex;gap:8px;align-items:center">${act}${editing ? '' : `<a class="ibtn" href="#home" aria-label="View site">${IC.eye}</a><button class="ibtn" data-act="logout" aria-label="Sign out" style="">${IC.out}</button>`}</div></div></div>
   <main class="ad-main"><div class="in">${body}</div></main></div>
   <nav class="ad-tabs" aria-label="Admin">${NAVS.map(n => `<button class="${A.tab === n[0] ? 'on' : ''}" data-act="tab" data-t="${n[0]}">${n[2]}<span>${n[1]}</span></button>`).join('')}</nav>
-  ${dirty() ? `<div class="pubbar"><div><span>Saved on this device. Not live for visitors yet.</span><button class="btn soft sm" data-act="discard" ${A.busy ? 'disabled' : ''}>Discard</button><button class="btn sm" data-act="publish" ${A.busy ? 'disabled' : ''}>${A.busy ? 'Publishing…' : 'Publish changes'}</button></div></div>` : ''}</div>`;
+  ${MODE === 'cloud' ? `<div class="pubbar" id="cchip" style="display:none"></div>` : dirty() ? `<div class="pubbar"><div><span>Saved on this device. Not live for visitors yet.</span><button class="btn soft sm" data-act="discard" ${A.busy ? 'disabled' : ''}>Discard</button><button class="btn sm" data-act="publish" ${A.busy ? 'disabled' : ''}>${A.busy ? 'Publishing…' : 'Publish changes'}</button></div></div>` : ''}</div>`;
 }
 
 function overviewHTML() {
   const cs = S.cars, n = f => cs.filter(f).length;
   const samples = cs.filter(c => c.sample).length + S.reviews.filter(r => r.sample).length;
-  return `${!waNum() ? `<div class="notice"><b>Add your WhatsApp number.</b> Every enquiry button needs it.<button class="btn sm" data-act="tab" data-t="site">Open site settings</button></div>` : ''}
+  return `${MODE === 'cloud' && CS.fallback ? `<div class="notice info"><b>Your site is not in Lovable Cloud yet.</b> Visitors are seeing the last published copy. Copy it into Cloud once, and from then on every change you save is live on every device.<button class="btn sm" data-act="cloud-import">Copy my site into Cloud</button></div>` : ''}${!waNum() ? `<div class="notice"><b>Add your WhatsApp number.</b> Every enquiry button needs it.<button class="btn sm" data-act="tab" data-t="site">Open site settings</button></div>` : ''}
   ${samples ? `<div class="notice info"><b>${samples} sample ${samples === 1 ? 'record is' : 'records are'} live on the site.</b> Sample listings carry a "Sample" tag. Remove them before you launch.<button class="btn sm soft" data-act="rm-samples">Remove all samples</button></div>` : ''}
   <div class="kpis"><div class="kpi"><b>${n(c => !isRent(c) && c.status === 'published')}</b><span>Cars for sale live</span></div><div class="kpi"><b>${n(c => isRent(c) && c.status === 'published')}</b><span>Rentals live</span></div><div class="kpi"><b>${n(c => c.status === 'draft')}</b><span>Drafts to finish</span></div><div class="kpi"><b>${n(c => c.status === 'sold')}</b><span>Sold</span></div></div>
   <div class="pnl" style="margin-top:14px"><h3>Quick actions</h3><div class="acts" style="margin:0"><button class="btn" data-act="add-car" data-kind="sale">+ Add car for sale</button><button class="btn" data-act="add-car" data-kind="rent">+ Add rental</button><button class="btn soft" data-act="tab" data-t="reviews">Manage client news</button><button class="btn soft" data-act="tab" data-t="site">Site settings</button></div></div>
-  <div class="pnl"><h3>How publishing works</h3><p class="hint">Edits you make here are a preview on this device. Press <b>Publish changes</b> to send them to everyone. Status controls what visitors see: Draft and Archived are hidden, Reserved and Sold are labelled, and Sold cars leave the catalogue but their link still works.</p></div>
-  <div class="pnl"><h3>Good to know</h3><p class="hint">The sign-in on this screen is a placeholder for the build phase. Real protection comes from who can publish this page. WhatsApp taps are not counted yet, and the "Saved" hearts are stored on each visitor's own phone.</p></div>`;
+  ${MODE === 'cloud' ? '<div class="pnl"><h3>How saving works</h3><p class="hint">Every change you make here saves to Lovable Cloud straight away and is live on every phone and computer. There is nothing to publish. Draft and Archived are hidden from visitors, Reserved and Sold are labelled, and Sold cars leave the catalogue but their link still works.</p></div>' : `<div class="pnl"><h3>How publishing works</h3><p class="hint">Edits you make here are a preview on this device. Press <b>Publish changes</b> to send them to everyone. Status controls what visitors see: Draft and Archived are hidden, Reserved and Sold are labelled, and Sold cars leave the catalogue but their link still works.</p></div>`}
+  ${MODE === 'cloud' ? '<div class="pnl"><h3>Good to know</h3><p class="hint">Only staff accounts with the admin role can change anything. WhatsApp taps are not counted yet, and the Saved hearts are stored on each visitor\'s own phone.</p></div>' : `<div class="pnl"><h3>Good to know</h3><p class="hint">The sign-in on this screen is a placeholder for the build phase. Real protection comes from who can publish this page. WhatsApp taps are not counted yet, and the "Saved" hearts are stored on each visitor's own phone.</p></div>`}`;
 }
 function adminList(tab) {
   const rent = tab === 'rent';
@@ -1310,6 +1530,7 @@ async function shrink(file, max = 1800, q = .82) {
 }
 const toDataURL = b => new Promise((res, rej) => { const f = new FileReader(); f.onload = () => res(f.result); f.onerror = () => rej(f.error); f.readAsDataURL(b); });
 async function uploadOne(file, wantThumb) {
+  if (MODE === 'cloud') return wantThumb ? cUploadPhoto(file) : cSmallImage(file);
   if (MODE === 'github') {
     const isV = file.type.startsWith('video/');
     if (isV && file.size > 12 * 1024 * 1024) throw new Error('Videos must be under 12 MB. Trim or compress it first.');
@@ -1442,6 +1663,7 @@ async function publishGithub() {
   } catch (e) { A.busy = false; toast('Could not publish: ' + ghWhy(e, g)); render(true); }
 }
 async function publish() {
+  if (MODE === 'cloud') { CS.failedSnap = null; CS.state = 'idle'; return cSync(); }
   if (MODE === 'github') return publishGithub();
   if (MODE === 'vercel' || MODE === 'server') return publishRemote();
   if (A.busy) return;
@@ -1502,7 +1724,7 @@ async function handleFiles(input) {
   for (const f of files) {
     try {
       const r = await uploadOne(f, input.id === 'up'); ok++;
-      if (input.id === 'up') A.draft.media.push({ type: r.type, src: r.url, ...(r.thumb ? { thumb: r.thumb } : {}), alt: '' });
+      if (input.id === 'up') A.draft.media.push({ type: r.type, src: r.url, ...(r.thumb ? { thumb: r.thumb } : {}), ...(r.path ? { path: r.path, ...(r.thumbPath ? { thumbPath: r.thumbPath } : {}) } : {}), alt: '' });
       else if (input.id === 'rv-up') A.rev.photo = r.url;
       else if (input.dataset.upS) cfg()[input.dataset.upS] = r.url;
     } catch (err) { toast(err.message || 'Upload failed'); }
@@ -1565,7 +1787,7 @@ document.addEventListener('click', async e => {
     return;
   }
   if (a === 'skin') return setSkin(t.dataset.v);
-  if (a === 'logout') { sess.del('big-admin'); if (MODE === 'vercel' || MODE === 'server') apiPost('/api/login', undefined, 'DELETE').catch(() => {}); A.draft = null; A.rev = null; location.hash = '#home'; render(); return; }
+  if (a === 'logout') { sess.del('big-admin'); if (MODE === 'cloud') { cAuth.clear(); location.hash = '#home'; location.reload(); return; } if (MODE === 'vercel' || MODE === 'server') apiPost('/api/login', undefined, 'DELETE').catch(() => {}); A.draft = null; A.rev = null; location.hash = '#home'; render(); return; }
   if (a === 'tab') { A.tab = t.dataset.t; A.draft = null; A.rev = null; A.q = ''; A.st = ''; render(); scrollTo(0, 0); return; }
   if (a === 'add-car') { A.tab = t.dataset.kind; A.draft = newCar(t.dataset.kind); A.slugTouched = false; A.errs = {}; render(); scrollTo(0, 0); return; }
   if (a === 'edit-car') { const c = S.cars.find(x => x.id === id); A.draft = JSON.parse(JSON.stringify(c)); A.slugTouched = true; A.errs = {}; render(); scrollTo(0, 0); return; }
@@ -1585,6 +1807,14 @@ document.addEventListener('click', async e => {
   }
   if (a === 'm-url') { const v = ($('#m-url').value || '').trim(); if (!/^https?:\/\//.test(v)) { toast('Paste a full address starting with https://'); return; } A.draft.media.push({ type: /\.(mp4|webm)$/i.test(v) ? 'video' : 'image', src: v, alt: '' }); render(true); return; }
   if (a === 'publish') return publish();
+  if (a === 'cloud-import') { toast('Copying your site into Cloud…'); return cSync(true); }
+  if (a === 'cloud-signup') {
+    const em = ($('#lg-e').value || '').trim().toLowerCase(), pw = ($('#lg-p').value || '').trim(), msg = $('#lg-msg');
+    if (!em || pw.length < 8) { if (msg) msg.textContent = 'Type your email and a password of at least 8 characters above, then press this again.'; return; }
+    try { await cSignup(em, pw); if (msg) msg.textContent = 'Account created. If you get a confirmation email, open it first. Then sign in above. The account also needs the admin role before it can change the site.'; }
+    catch (er) { if (msg) msg.textContent = er.message || 'Could not create the account.'; }
+    return;
+  }
   if (a === 'rm-samples') { confirmBox('Remove all samples?', 'Every listing and client news tagged Sample will be deleted.', 'Remove', () => { S.cars = S.cars.filter(c => !c.sample); S.reviews = S.reviews.filter(r => !r.sample); toast('Samples removed'); render(true); }); return; }
   if (a === 'add-rev') { A.tab = 'reviews'; A.rev = { id: uid(), name: '', text: '', rating: 5, carId: '', photo: '', visible: true, date: Date.now() }; render(); scrollTo(0, 0); return; }
   if (a === 'edit-rev') { A.rev = { ...S.reviews.find(r => r.id === id) }; render(); scrollTo(0, 0); return; }
@@ -1642,6 +1872,11 @@ document.addEventListener('submit', e => {
   const btn = e.target.querySelector('button[type=submit],button:not([type])'); if (btn) btn.disabled = true;
   const fail = () => { if (msg) msg.textContent = 'Username or password is not right.'; if (btn) btn.disabled = false; };
   (async () => {
+    if (MODE === 'cloud') {
+      try { await cLogin(u, p); render(); await loadRemote(); render(); }
+      catch (er) { if (msg) msg.textContent = er.code === 'NOT_ADMIN' ? 'This account is signed in, but it has not been given the admin role yet. Ask Lovable to add it, or run the one-line step in the setup note.' : (er.message || 'Could not sign in.'); if (btn) btn.disabled = false; }
+      return;
+    }
     if (MODE === 'vercel' || MODE === 'server') {
       try { await apiPost('/api/login', { user: u, pass: p }); sess.set('big-admin', '1'); render(); }
       catch (er) { if (msg) msg.textContent = er.status === 401 ? 'Username or password is not right.' : (er.message || 'Could not sign in.'); if (btn) btn.disabled = false; }

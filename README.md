@@ -9,7 +9,7 @@ Everything you add is kept in the `data/` folder next to this code: `data/state.
 ## Put it on Vercel (static, no setup)
 
 Import the repo in Vercel and deploy. `vercel.json` and `.vercelignore` already tell Vercel this is a plain static site, so you need no settings, build command or storage.
-On Vercel the dashboard saves into this GitHub repository: open `/#admin`, go to Site, then Publishing, and add a GitHub key (Contents: Read and write on this repo).
+This site now uses **Lovable Cloud** for everything you edit: cars, rentals, client news, settings and photos. Saving in the dashboard is live on every device straight away. There is no GitHub key and no publish step. See `SETUP-CLOUD.md` for the one-time setup (staff account and admin role).
 
 ## Put it on your Hostinger VPS (about 10 minutes)
 

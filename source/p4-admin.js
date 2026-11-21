@@ -17,7 +17,7 @@ const NAVS = [['overview', 'Overview', IC.grid], ['sale', 'Cars for sale', IC.ca
 function loginHTML() {
   return `<div class="login"><form class="box frm" id="login" autocomplete="off"><a class="brand" href="#home" style="color:#fff">${logo()}</a><h1>Staff sign in</h1>
   <label>${MODE === 'cloud' ? 'Email' : 'Username'}<input class="field" id="lg-e" type="${MODE === 'cloud' ? 'email' : 'text'}" autocomplete="username" autocapitalize="none" spellcheck="false" value=""></label><label>Password<input class="field" id="lg-p" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false"></label><label class="showpw"><input type="checkbox" data-act="showpw"> Show password</label>
-  <button class="btn block" type="submit">Sign in</button>${MODE === 'cloud' ? '<button class="btn soft block" type="button" data-act="cloud-signup">First time? Create the staff account</button>' : ''}
+  <button class="btn block" type="submit">Sign in</button>
   <p class="login-note" id="lg-msg" role="alert"></p><a href="#home" style="text-align:center;color:var(--hero-mute)">Back to site</a></form></div>`;
 }
 function adminHTML() {

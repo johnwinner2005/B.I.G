@@ -251,13 +251,6 @@ document.addEventListener('click', async e => {
   if (a === 'm-url') { const v = ($('#m-url').value || '').trim(); if (!/^https?:\/\//.test(v)) { toast('Paste a full address starting with https://'); return; } A.draft.media.push({ type: /\.(mp4|webm)$/i.test(v) ? 'video' : 'image', src: v, alt: '' }); render(true); return; }
   if (a === 'publish') return publish();
   if (a === 'cloud-import') { toast('Copying your site into Cloud…'); return cSync(true); }
-  if (a === 'cloud-signup') {
-    const em = ($('#lg-e').value || '').trim().toLowerCase(), pw = ($('#lg-p').value || '').trim(), msg = $('#lg-msg');
-    if (!em || pw.length < 8) { if (msg) msg.textContent = 'Type your email and a password of at least 8 characters above, then press this again.'; return; }
-    try { await cSignup(em, pw); if (msg) msg.textContent = 'Account created. If you get a confirmation email, open it first. Then sign in above. The account also needs the admin role before it can change the site.'; }
-    catch (er) { if (msg) msg.textContent = er.message || 'Could not create the account.'; }
-    return;
-  }
   if (a === 'rm-samples') { confirmBox('Remove all samples?', 'Every listing and client news tagged Sample will be deleted.', 'Remove', () => { S.cars = S.cars.filter(c => !c.sample); S.reviews = S.reviews.filter(r => !r.sample); toast('Samples removed'); render(true); }); return; }
   if (a === 'add-rev') { A.tab = 'reviews'; A.rev = { id: uid(), name: '', text: '', rating: 5, carId: '', photo: '', visible: true, date: Date.now() }; render(); scrollTo(0, 0); return; }
   if (a === 'edit-rev') { A.rev = { ...S.reviews.find(r => r.id === id) }; render(); scrollTo(0, 0); return; }

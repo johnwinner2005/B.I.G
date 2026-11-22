@@ -146,7 +146,7 @@ async function cLogin(email, pass) {
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.access_token) { const e = new Error(r.status === 400 ? 'Email or password is not right.' : (j.error_description || j.msg || 'Could not sign in.')); e.status = r.status; throw e; }
   cAuth.set({ at: j.access_token, rt: j.refresh_token, exp: Math.floor(Date.now() / 1000) + (j.expires_in || 3600), uid: j.user && j.user.id, email: (j.user && j.user.email) || email });
-  if (!(await cIsAdmin())) { cAuth.clear(); const e = new Error('This account is signed in, but it has not been given staff access yet.'); e.code = 'NOT_ADMIN'; throw e; }
+  if (!(await cIsAdmin())) { const uid = cAuth.get() && cAuth.get().uid; cAuth.clear(); const e = new Error('This account is signed in, but it has not been given staff access yet.'); e.code = 'NOT_ADMIN'; e.uid = uid; throw e; }
   sess.set('big-admin', '1');
 }
 async function cSignup(email, pass) {

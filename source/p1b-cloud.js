@@ -144,7 +144,13 @@ async function cloudLoad() {
 async function cLogin(email, pass) {
   const r = await fetch(CLOUD.url + '/auth/v1/token?grant_type=password', { method: 'POST', headers: cHeaders(null, { 'content-type': 'application/json' }), body: JSON.stringify({ email, password: pass }) });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok || !j.access_token) { const e = new Error(r.status === 400 ? 'Email or password is not right.' : (j.error_description || j.msg || 'Could not sign in.')); e.status = r.status; throw e; }
+  if (!r.ok || !j.access_token) {
+    const why = String(j.error_description || j.msg || j.message || '');
+    const e = new Error(/not confirmed/i.test(why) ? 'This email is not confirmed yet. Open the verification link that was sent to it, or switch off "Confirm email" in Cloud, then try again.'
+      : /invalid login|invalid_grant|credentials/i.test(why) || (r.status === 400 && !why) ? 'Email or password is not right.'
+      : (why ? 'Cloud says: ' + why : 'Could not sign in (' + r.status + ').'));
+    e.status = r.status; throw e;
+  }
   cAuth.set({ at: j.access_token, rt: j.refresh_token, exp: Math.floor(Date.now() / 1000) + (j.expires_in || 3600), uid: j.user && j.user.id, email: (j.user && j.user.email) || email });
   if (!(await cIsAdmin())) { const uid = cAuth.get() && cAuth.get().uid; cAuth.clear(); const e = new Error('This account is signed in, but it has not been given staff access yet.'); e.code = 'NOT_ADMIN'; e.uid = uid; throw e; }
   sess.set('big-admin', '1');

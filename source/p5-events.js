@@ -310,7 +310,7 @@ document.addEventListener('submit', e => {
   (async () => {
     if (MODE === 'cloud') {
       try { await cLogin(u, p); render(); await loadRemote(); render(); }
-      catch (er) { if (msg) msg.textContent = er.code === 'NOT_ADMIN' ? 'Signed in, but this account has no admin role yet. Its user ID is ' + (er.uid || '(unknown)') + '. Paste that into user_id in the user_roles table, with role admin, then sign in again.' : (er.message || 'Could not sign in.'); if (btn) btn.disabled = false; }
+      catch (er) { if (msg) msg.textContent = er.code === 'NOT_ADMIN' ? 'Signed in, but this account has no admin role yet. Its user ID is ' + (er.uid || '(unknown)') + '. Paste that into user_id in the user_roles table, with role admin, then sign in again.' : (er instanceof TypeError ? 'Could not reach the server. Check your connection and try again.' : (er.message || 'Could not sign in.')); if (btn) btn.disabled = false; }
       return;
     }
     if (MODE === 'vercel' || MODE === 'server') {
